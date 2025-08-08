@@ -2,14 +2,6 @@
 #import <Cocoa/Cocoa.h>
 #include <librdpc.h>
 
-struct send_t
-{
-    size_t sent;
-    size_t out_data_bytes;
-    char* out_data;
-    struct send_t* next;
-};
-
 @interface RDPConnect : NSObject
 {
     NSString* serverName;
@@ -22,6 +14,14 @@ struct send_t
 -(NSString*)getServerPort;
 
 @end
+
+struct send_t
+{
+    size_t sent;
+    size_t out_data_bytes;
+    char* out_data;
+    struct send_t* next;
+};
 
 @interface RDPSession : NSObject
 {
@@ -62,9 +62,9 @@ struct send_t
 -(void)setApp:(NSApplication*)aapp;
 -(void)setAppName:(NSString*)aappName;
 -(void)setAppVersion:(NSString*)aappVersion;
--(int)getSck;
--(bool)wantWrite;
 -(void)setupRunLoop;
+-(bool)canRecv:(int)sck;
+-(bool)canSend:(int)sck;
 -(void)doRead;
 -(void)doWrite;
 

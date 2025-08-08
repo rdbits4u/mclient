@@ -15,6 +15,13 @@ main(int argc, const char** argv)
     // Get the shared NSApplication instance
     NSApplication* app = [NSApplication sharedApplication];
     [delegate setApp:app]; // my setter
+    if ([delegate processArgs:argc :argv] != 0)
+    {
+        NSLog(@"main: error processing argc");
+        [delegate release];
+        log_deinit();
+        return 0;
+    }
     // Assign the delegate to the NSApplication instance
     [app setDelegate:delegate];
     [app setActivationPolicy:NSApplicationActivationPolicyRegular];

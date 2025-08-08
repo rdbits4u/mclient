@@ -1,4 +1,5 @@
 
+#include <poll.h>
 #import "rdpc_session.h"
 #import "mclient_view.h"
 
@@ -160,7 +161,7 @@ cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
     }
     char* save_data = (char*)adata;
     uint32_t save_bytes = abytes;
-    if (send_head == NULL && 1)
+    if ((send_head == NULL) && [self canSend:sck])
     {
         int send_rv;
         while ((send_rv = send(sck, adata, abytes, 0)) == -1)
@@ -340,19 +341,21 @@ cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
             return 1;
         }
 
+        int width = rdpc->cgcc.core.desktopWidth;
+        int height = rdpc->cgcc.core.desktopHeight; 
+
         // create window
         NSWindow* window = [NSWindow alloc];
         NSWindowStyleMask mask = NSTitledWindowMask | NSResizableWindowMask |
                 NSMiniaturizableWindowMask | NSClosableWindowMask;
         [window
-            initWithContentRect:NSMakeRect(0, 0, 1024, 768)
+            initWithContentRect:NSMakeRect(0, 0, width, height)
             styleMask:mask
             backing:NSBackingStoreBuffered
             defer:NO];
         [window setTitle:appName];
         [window center];
         [window makeKeyAndOrderFront:nil];
-        //[window setDelegate:[app delegate]];
         [window setAcceptsMouseMovedEvents:TRUE];
         // create NSView
         MClientView* view = [MClientView alloc];
@@ -361,11 +364,11 @@ cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
         [view setSession:self];
 
     }
-    while (send_head != NULL)
+    if (send_head != NULL)
     {
         struct send_t* send_obj = send_head;
         int send_rv;
-        char* data =send_obj->out_data + send_obj->sent;
+        char* data = send_obj->out_data + send_obj->sent;
         size_t bytes = send_obj->out_data_bytes - send_obj->sent;
         while ((send_rv = send(sck, data, bytes, 0)) == -1)
         {
@@ -391,7 +394,7 @@ cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
         }
         else
         {
-            break;
+            return 3;
         }
     }
     return 0;
@@ -407,12 +410,12 @@ cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
 -(void)sendMouseDownEvent:(uint16_t)but :(uint16_t)x :(uint16_t)y
 {
     uint16_t flags = PTRFLAGS_DOWN;
-    switch (but) 
+    switch (but)
     {
         case 1: flags |= PTRFLAGS_BUTTON1; break;
         case 2: flags |= PTRFLAGS_BUTTON2; break;
         case 3: flags |= PTRFLAGS_BUTTON3; break;
-        default: return; 
+        default: return;
     }
     rdpc_send_mouse_event(rdpc, flags, x, y);
 }
@@ -421,12 +424,12 @@ cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
 -(void)sendMouseUpEvent:(uint16_t)but :(uint16_t)x :(uint16_t)y
 {
     uint16_t flags = 0;
-    switch (but) 
+    switch (but)
     {
         case 1: flags |= PTRFLAGS_BUTTON1; break;
         case 2: flags |= PTRFLAGS_BUTTON2; break;
         case 3: flags |= PTRFLAGS_BUTTON3; break;
-        default: return; 
+        default: return;
     }
     rdpc_send_mouse_event(rdpc, flags, x, y);
 }
@@ -450,32 +453,10 @@ cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
 }
 
 //*************************************************************************
--(int)getSck
-{
-    NSLog(@"RDPSession getSck:");
-    return sck;
-}
-
-//*************************************************************************
--(bool)wantWrite
-{
-    NSLog(@"RDPSession wantWrite:");
-    if (!connected)
-    {
-        return true;
-    }
-    if (send_head != NULL)
-    {
-        return true;
-    }
-    return false;
-}
-
-//*************************************************************************
 -(void)setupRunLoop
 {
-    NSLog(@"setupRunLoop:");
-    bool want_write = [self wantWrite];
+    //NSLog(@"setupRunLoop:");
+    bool want_write = (connected == false) || (send_head != NULL);
     NSLog(@"setupRunLoop: want_write %d setupWithWantWrite %d",
             (int)want_write, (int)setupWithWantWrite);
     if (runLoopSourceRef != NULL && (want_write == setupWithWantWrite))
@@ -483,16 +464,16 @@ cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
         // do not need to setup run loop
         return;
     }
-    CFRunLoopRef runLoopRef = CFRunLoopGetMain();
     if (runLoopSourceRef != NULL)
     {
-        NSLog(@"setupRunLoop: remove %p %p", runLoopSourceRef, socketRef);
+        //NSLog(@"setupRunLoop: removing runLoopSourceRef %p", runLoopSourceRef);
         CFRunLoopSourceInvalidate(runLoopSourceRef);
         CFRelease(runLoopSourceRef);
         runLoopSourceRef = NULL;
     }
     if (socketRef != NULL)
     {
+        //NSLog(@"setupRunLoop: removing socketRef %p", socketRef);
         CFSocketInvalidate(socketRef);
         CFRelease(socketRef);
         socketRef = NULL;
@@ -535,7 +516,7 @@ cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
     }
     if (sflags != flags)
     {
-        NSLog(@"setupRunLoop: setting flags old 0x%X new 0x%X", sflags, flags);
+        //NSLog(@"setupRunLoop: setting flags old 0x%lX new 0x%lX", sflags, flags);
         CFSocketSetSocketFlags(socketRef, flags);
     }
     // create run loop source
@@ -547,19 +528,69 @@ cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
         return;
     }
     // add to run loop
-    NSLog(@"setupRunLoop: adding %p %p", runLoopSourceRef, socketRef);
+    //NSLog(@"setupRunLoop: adding %p %p", runLoopSourceRef, socketRef);
+    CFRunLoopRef runLoopRef = CFRunLoopGetMain();
     CFRunLoopAddSource(runLoopRef, runLoopSourceRef, kCFRunLoopDefaultMode);
 
+}
+
+//*************************************************************************
+-(bool)canRecv:(int)sck
+{
+    struct pollfd polfds[2];
+    memset(polfds, 0, sizeof(polfds));
+    polfds[0].fd = sck;
+    polfds[0].events = POLLIN;
+    int poll_rv;
+    while ((poll_rv = poll(polfds, 1, 0)) == -1)
+    {
+        if (errno == EINTR) continue;
+        break;
+    }
+    if (poll_rv > 0)
+    {
+        if ((polfds[0].revents & POLLIN) != 0)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+//*************************************************************************
+-(bool)canSend:(int)sck
+{
+    struct pollfd polfds[2];
+    memset(polfds, 0, sizeof(polfds));
+    polfds[0].fd = sck;
+    polfds[0].events = POLLOUT;
+    int poll_rv;
+    while ((poll_rv = poll(polfds, 1, 0)) == -1)
+    {
+        if (errno == EINTR) continue;
+        break;
+    }
+    if (poll_rv > 0)
+    {
+        if ((polfds[0].revents & POLLOUT) != 0)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 //*************************************************************************
 -(void)doRead;
 {
     NSLog(@"doRead:");
-    if ([self readProcessServerData] != 0)
+    if ([self canRecv:sck])
     {
-        [app terminate:self];
-        return;
+        if ([self readProcessServerData] != 0)
+        {
+            [app terminate:self];
+            return;
+        }
     }
     [self setupRunLoop];
 }
@@ -568,10 +599,13 @@ cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
 -(void)doWrite;
 {
     NSLog(@"doWrite:");
-    if ([self processWriteServerData] != 0)
+    if ([self canSend:sck])
     {
-        [app terminate:self];
-        return;
+        if ([self processWriteServerData] != 0)
+        {
+            [app terminate:self];
+            return;
+        }
     }
     [self setupRunLoop];
 }
