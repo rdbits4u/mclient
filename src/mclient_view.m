@@ -3,6 +3,14 @@
 
 @implementation MClientView
 
+//*****************************************************************************
+-(void)dealloc
+{
+    NSLog(@"MClientView dealloc:");
+    [session release];
+    [super dealloc];
+}
+
 //*************************************************************************
 -(BOOL)isFlipped
 {
@@ -159,6 +167,7 @@
 -(void)setSession:(RDPSession*)asession
 {
     session = asession;
+    [session retain];
 }
 
 @end

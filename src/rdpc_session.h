@@ -30,8 +30,8 @@ struct send_t
     int sck;
     bool connected;
     char* in_data;
-    int in_data_size;
-    int recv_start;
+    size_t in_data_size;
+    size_t recv_start;
     struct send_t* send_head;
     struct send_t* send_tail;
 
@@ -51,6 +51,9 @@ struct send_t
 -(int)sendToServer:(void*)adata :(uint32_t)abytes;
 -(int)setSurfaceBits:(struct bitmap_data_t*)abitmap_data;
 -(int)frameMarker:(uint16_t)frame_action :(uint32_t)frame_id;
+-(int)pointerUpdate:(struct pointer_t*)apointer;
+-(int)pointerCached:(uint16_t)cache_index;
+
 -(int)connectToServer;
 -(int)readProcessServerData;
 -(int)processWriteServerData;
@@ -63,9 +66,11 @@ struct send_t
 -(void)setAppName:(NSString*)aappName;
 -(void)setAppVersion:(NSString*)aappVersion;
 -(void)setupRunLoop;
--(bool)canRecv:(int)sck;
--(bool)canSend:(int)sck;
+-(bool)canRecv:(int)asck;
+-(bool)canSend:(int)asck;
 -(void)doRead;
 -(void)doWrite;
+
+-(int)createWindow:(int)awidth :(int)aheight;
 
 @end

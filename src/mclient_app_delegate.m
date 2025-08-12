@@ -8,7 +8,7 @@
 
 @implementation MClientAppDelegate
 
-//*************************************************************************
+//*****************************************************************************
 -(MClientAppDelegate*)init
 {
     NSLog(@"MClientAppDelegate init:");
@@ -19,9 +19,15 @@
     return self;
 }
 
+//*****************************************************************************
 -(void)dealloc
 {
     NSLog(@"MClientAppDelegate dealloc:");
+    [app release];
+    [appName release];
+    [appVersion release];
+    [session release];
+    [connectInfo release];
     [super dealloc];
 }
 
@@ -77,6 +83,7 @@
 -(void)setApp:(NSApplication*)aapp
 {
     app = aapp;
+    [app retain];
 }
 
 //*************************************************************************
@@ -176,7 +183,7 @@ last_strstr(const char* haystack, const char* needle)
 }
 
 //*************************************************************************
--(int)processArgs:(int)argc :(char**)argv
+-(int)processArgs:(int)argc :(const char**)argv
 {
     NSLog(@"processArgs:");
     if (argc < 2)

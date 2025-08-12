@@ -4,6 +4,7 @@
 #import "mclient_view.h"
 
 //*************************************************************************
+// callback
 static void
 socketCallback(CFSocketRef theSocketRef,
                CFSocketCallBackType theCallbackType,
@@ -29,15 +30,17 @@ socketCallback(CFSocketRef theSocketRef,
 }
 
 //*************************************************************************
+// callback
 // int (*log_msg)(struct rdpc_t* rdpc, const char* msg);
 static int
 cb_rdpc_log_msg(struct rdpc_t* rdpc, const char* msg)
 {
     NSLog(@"cb_rdpc_log_msg: %s", msg);
-    return 0;
+    return LIBRDPC_ERROR_NONE;
 }
 
 //*************************************************************************
+// callback
 // int (*send_to_server)(struct rdpc_t* rdpc, void* data, uint32_t bytes);
 static int
 cb_rdpc_send_to_server(struct rdpc_t* rdpc, void* data, uint32_t bytes)
@@ -47,14 +50,19 @@ cb_rdpc_send_to_server(struct rdpc_t* rdpc, void* data, uint32_t bytes)
     {
         if (rdpc->user != NULL)
         {
-            RDPSession* session = (RDPSession*)(rdpc->user);
-            [session sendToServer:data :bytes];
+            if (data != NULL)
+            {
+                RDPSession* session = (RDPSession*)(rdpc->user);
+                [session sendToServer:data :bytes];
+                return LIBRDPC_ERROR_NONE;
+            }
         }
     }
-    return 0;
+    return LIBRDPC_ERROR_PARAM;
 }
 
 //*************************************************************************
+// callback
 // int (*set_surface_bits)(struct rdpc_t* rdpc,
 //                        struct bitmap_data_t* bitmap_data);
 static int
@@ -66,11 +74,15 @@ cb_rdpc_set_surface_bits(struct rdpc_t* rdpc,
     {
         if (rdpc->user != NULL)
         {
-            RDPSession* session = (RDPSession*)(rdpc->user);
-            [session setSurfaceBits:bitmap_data];
+            if (bitmap_data != NULL)
+            {
+                RDPSession* session = (RDPSession*)(rdpc->user);
+                [session setSurfaceBits:bitmap_data];
+                return LIBRDPC_ERROR_NONE;
+            }
         }
     }
-    return 0;
+    return LIBRDPC_ERROR_PARAM;
 }
 
 //*************************************************************************
@@ -87,9 +99,54 @@ cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
         {
             RDPSession* session = (RDPSession*)(rdpc->user);
             [session frameMarker:frame_action :frame_id];
+            return LIBRDPC_ERROR_NONE;
         }
     }
-    return 0;
+    return LIBRDPC_ERROR_PARAM;
+}
+
+//*****************************************************************************
+// callback
+// int (*pointer_update)(struct rdpc_t* rdpc,
+//                       struct pointer_t* pointer);
+static int
+cb_rdpc_pointer_update(struct rdpc_t* rdpc,
+                       struct pointer_t* pointer)
+{
+    NSLog(@"cb_rdpc_pointer_update:");
+    if (rdpc != NULL)
+    {
+        if (rdpc->user != NULL)
+        {
+            if (pointer != NULL)
+            {
+                RDPSession* session = (RDPSession*)(rdpc->user);
+                [session pointerUpdate:pointer];
+                return LIBRDPC_ERROR_NONE;
+            }
+        }
+    }
+    return LIBRDPC_ERROR_PARAM;
+}
+
+//*****************************************************************************
+// callback
+// int (*pointer_cached)(struct rdpc_t* rdpc,
+//                       uint16_t cache_index);
+static int
+cb_rdpc_pointer_cached(struct rdpc_t* rdpc, uint16_t cache_index)
+{
+    NSLog(@"cb_rdpc_pointer_cached:");
+    if (rdpc != NULL)
+    {
+        if (rdpc->user != NULL)
+        {
+            RDPSession* session = (RDPSession*)(rdpc->user);
+            [session pointerCached:cache_index];
+            return LIBRDPC_ERROR_NONE;
+        }
+    }
+    return LIBRDPC_ERROR_PARAM;
 }
 
 @implementation RDPConnect
@@ -143,10 +200,13 @@ cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
         rdpc->send_to_server = cb_rdpc_send_to_server;
         rdpc->set_surface_bits = cb_rdpc_set_surface_bits;
         rdpc->frame_marker = cb_rdpc_frame_marker;
+        rdpc->pointer_update = cb_rdpc_pointer_update;
+        rdpc->pointer_cached = cb_rdpc_pointer_cached;
 
         connectInfo = aconnectInfo;
+        [connectInfo retain];
         in_data_size = 128 * 1024;
-        in_data = malloc(in_data_size);
+        in_data = (char*)malloc(in_data_size);
     }
     return self;
 }
@@ -214,6 +274,9 @@ cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
 -(int)setSurfaceBits:(struct bitmap_data_t*)abitmap_data
 {
     NSLog(@"RDPSession setSurfaceBits:");
+    if (abitmap_data->codec_id == 0)
+    {
+    }
     return 0;
 }
 
@@ -228,26 +291,57 @@ cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
 }
 
 //*************************************************************************
+-(int)pointerUpdate:(struct pointer_t*)apointer
+{
+    NSLog(@"RDPSession pointerUpdate:");
+    return 0;
+}
+
+//*************************************************************************
+-(int)pointerCached:(uint16_t)cache_index
+{
+    NSLog(@"RDPSession pointerCached:");
+    return 0;
+}
+
+//*************************************************************************
 -(int)connectToServer
 {
-    NSLog(@"RDPSession connectToServer:");
+    struct sockaddr_un unix_addr;
+    struct sockaddr_in serv_addr;
+    struct sockaddr* addr;
+    long addr_size;
 
+    NSLog(@"RDPSession connectToServer:");
     NSString* serverName = [connectInfo getServerName];
     NSString* serverPort = [connectInfo getServerPort];
-
-    struct sockaddr_in serv_addr;
-    memset(&serv_addr, 0, sizeof(serv_addr));
-
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons([serverPort intValue]);
-    NSLog(@"connectToServer: connecting to %s port %d",
-            [serverName UTF8String], [serverPort intValue]);
-    if (inet_pton(AF_INET, [serverName UTF8String], &serv_addr.sin_addr) <= 0)
+    if (serverName == NULL)
     {
-        return 1;
+        // unix domain socket
+        memset(&unix_addr, 0, sizeof(unix_addr));
+        addr = (struct sockaddr*)&unix_addr;
+        addr_size = sizeof(unix_addr);
+        snprintf(unix_addr.sun_path, sizeof(unix_addr.sun_path), "%s",
+                [serverPort UTF8String]);
+        sck = socket(PF_LOCAL, SOCK_STREAM, 0);
+    }
+    else
+    {
+        memset(&serv_addr, 0, sizeof(serv_addr));
+        addr = (struct sockaddr*)&serv_addr;
+        addr_size = sizeof(serv_addr);
+        serv_addr.sin_family = AF_INET;
+        serv_addr.sin_port = htons([serverPort intValue]);
+        NSLog(@"connectToServer: connecting to %s port %d",
+                [serverName UTF8String], [serverPort intValue]);
+        if (inet_pton(AF_INET, [serverName UTF8String],
+                &serv_addr.sin_addr) <= 0)
+        {
+            return 1;
+        }
+        sck = socket(AF_INET, SOCK_STREAM, 0);
     }
 
-    sck = socket(AF_INET, SOCK_STREAM, 0);
     if (sck == -1)
     {
         return 2;
@@ -265,7 +359,7 @@ cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
         fcntl(sck, F_SETFL, val1);
     }
     // connect
-    while ((val1 = connect(sck, (struct sockaddr *)&serv_addr, sizeof(serv_addr))) == -1)
+    while ((val1 = connect(sck, addr, addr_size)) == -1)
     {
         if (errno == EINTR) continue;
         if (errno == EINPROGRESS) break; // ok
@@ -278,6 +372,10 @@ cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
 -(int)readProcessServerData
 {
     NSLog(@"readProcessServerData:");
+    if (![self canRecv:sck])
+    {
+        return 0;
+    }
     int to_read = in_data_size - recv_start;
     int recv_rv;
     int val1;
@@ -330,39 +428,21 @@ cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
 -(int)processWriteServerData
 {
     NSLog(@"processWriteServerData:");
+    if (![self canSend:sck])
+    {
+        return 0;
+    }
     if (!connected)
     {
         connected = true;
-
-
         int rv = rdpc_start(rdpc);
         if (rv != LIBRDPC_ERROR_NONE)
         {
             return 1;
         }
-
         int width = rdpc->cgcc.core.desktopWidth;
-        int height = rdpc->cgcc.core.desktopHeight; 
-
-        // create window
-        NSWindow* window = [NSWindow alloc];
-        NSWindowStyleMask mask = NSTitledWindowMask | NSResizableWindowMask |
-                NSMiniaturizableWindowMask | NSClosableWindowMask;
-        [window
-            initWithContentRect:NSMakeRect(0, 0, width, height)
-            styleMask:mask
-            backing:NSBackingStoreBuffered
-            defer:NO];
-        [window setTitle:appName];
-        [window center];
-        [window makeKeyAndOrderFront:nil];
-        [window setAcceptsMouseMovedEvents:TRUE];
-        // create NSView
-        MClientView* view = [MClientView alloc];
-        [view initWithFrame:NSMakeRect(0, 0, 1, 1)];
-        [[window contentView] addSubview:view];
-        [view setSession:self];
-
+        int height = rdpc->cgcc.core.desktopHeight;
+        [self createWindow:width :height];
     }
     if (send_head != NULL)
     {
@@ -455,10 +535,7 @@ cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
 //*************************************************************************
 -(void)setupRunLoop
 {
-    //NSLog(@"setupRunLoop:");
     bool want_write = (connected == false) || (send_head != NULL);
-    NSLog(@"setupRunLoop: want_write %d setupWithWantWrite %d",
-            (int)want_write, (int)setupWithWantWrite);
     if (runLoopSourceRef != NULL && (want_write == setupWithWantWrite))
     {
         // do not need to setup run loop
@@ -466,14 +543,12 @@ cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
     }
     if (runLoopSourceRef != NULL)
     {
-        //NSLog(@"setupRunLoop: removing runLoopSourceRef %p", runLoopSourceRef);
         CFRunLoopSourceInvalidate(runLoopSourceRef);
         CFRelease(runLoopSourceRef);
         runLoopSourceRef = NULL;
     }
     if (socketRef != NULL)
     {
-        //NSLog(@"setupRunLoop: removing socketRef %p", socketRef);
         CFSocketInvalidate(socketRef);
         CFRelease(socketRef);
         socketRef = NULL;
@@ -482,13 +557,10 @@ cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
     CFSocketContext context;
     memset(&context, 0, sizeof(context));
     context.info = self;
-    setupWithWantWrite = false;
-    CFOptionFlags sckFlags = kCFSocketReadCallBack;
-    if (want_write)
-    {
-        setupWithWantWrite = true;
-        sckFlags |= kCFSocketWriteCallBack;
-    }
+    setupWithWantWrite = want_write;
+    CFOptionFlags sckFlags = want_write ?
+            (kCFSocketReadCallBack | kCFSocketWriteCallBack) :
+            kCFSocketReadCallBack;
     socketRef = CFSocketCreateWithNative(kCFAllocatorDefault, sck,
             sckFlags, socketCallback, &context);
     if (socketRef == NULL)
@@ -498,27 +570,12 @@ cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
     }
     // check flags
     CFOptionFlags flags = CFSocketGetSocketFlags(socketRef);
-    CFOptionFlags sflags = flags;
-    if ((flags & kCFSocketCloseOnInvalidate) != 0)
-    {
-        flags &= ~kCFSocketCloseOnInvalidate;
-    }
+    flags &= ~kCFSocketCloseOnInvalidate;
     if (want_write)
     {
-        if ((flags & kCFSocketAutomaticallyReenableWriteCallBack) == 0)
-        {
-            flags |= kCFSocketAutomaticallyReenableWriteCallBack;
-        }
+        flags |= kCFSocketAutomaticallyReenableWriteCallBack;
     }
-    if ((flags & kCFSocketAutomaticallyReenableReadCallBack) == 0)
-    {
-        flags |= kCFSocketAutomaticallyReenableReadCallBack;
-    }
-    if (sflags != flags)
-    {
-        //NSLog(@"setupRunLoop: setting flags old 0x%lX new 0x%lX", sflags, flags);
-        CFSocketSetSocketFlags(socketRef, flags);
-    }
+    CFSocketSetSocketFlags(socketRef, flags);
     // create run loop source
     runLoopSourceRef = CFSocketCreateRunLoopSource(kCFAllocatorDefault,
             socketRef, 0);
@@ -528,18 +585,16 @@ cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
         return;
     }
     // add to run loop
-    //NSLog(@"setupRunLoop: adding %p %p", runLoopSourceRef, socketRef);
     CFRunLoopRef runLoopRef = CFRunLoopGetMain();
     CFRunLoopAddSource(runLoopRef, runLoopSourceRef, kCFRunLoopDefaultMode);
-
 }
 
 //*************************************************************************
--(bool)canRecv:(int)sck
+-(bool)canRecv:(int)asck
 {
     struct pollfd polfds[2];
     memset(polfds, 0, sizeof(polfds));
-    polfds[0].fd = sck;
+    polfds[0].fd = asck;
     polfds[0].events = POLLIN;
     int poll_rv;
     while ((poll_rv = poll(polfds, 1, 0)) == -1)
@@ -558,11 +613,11 @@ cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
 }
 
 //*************************************************************************
--(bool)canSend:(int)sck
+-(bool)canSend:(int)asck
 {
     struct pollfd polfds[2];
     memset(polfds, 0, sizeof(polfds));
-    polfds[0].fd = sck;
+    polfds[0].fd = asck;
     polfds[0].events = POLLOUT;
     int poll_rv;
     while ((poll_rv = poll(polfds, 1, 0)) == -1)
@@ -584,13 +639,10 @@ cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
 -(void)doRead;
 {
     NSLog(@"doRead:");
-    if ([self canRecv:sck])
+    if ([self readProcessServerData] != 0)
     {
-        if ([self readProcessServerData] != 0)
-        {
-            [app terminate:self];
-            return;
-        }
+        [app terminate:self];
+        return;
     }
     [self setupRunLoop];
 }
@@ -599,15 +651,36 @@ cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
 -(void)doWrite;
 {
     NSLog(@"doWrite:");
-    if ([self canSend:sck])
+    if ([self processWriteServerData] != 0)
     {
-        if ([self processWriteServerData] != 0)
-        {
-            [app terminate:self];
-            return;
-        }
+        [app terminate:self];
+        return;
     }
     [self setupRunLoop];
+}
+
+//*************************************************************************
+-(int)createWindow:(int)awidth :(int)aheight
+{
+    NSLog(@"createWindow:");
+    // create window
+    NSWindow* window = [NSWindow alloc];
+    NSWindowStyleMask mask = NSTitledWindowMask | NSResizableWindowMask |
+            NSMiniaturizableWindowMask | NSClosableWindowMask;
+    [window
+        initWithContentRect:NSMakeRect(0, 0, awidth, aheight)
+        styleMask:mask
+        backing:NSBackingStoreBuffered
+        defer:NO];
+    [window setTitle:appName];
+    [window center];
+    [window makeKeyAndOrderFront:nil];
+    [window setAcceptsMouseMovedEvents:TRUE];
+    // create NSView
+    MClientView* view = [MClientView alloc];
+    [view initWithFrame:NSMakeRect(0, 0, 1, 1)];
+    [view setSession:self];
+    [[window contentView] addSubview:view];
 }
 
 @end

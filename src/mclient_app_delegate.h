@@ -15,6 +15,6 @@
 -(void)setApp:(NSApplication*)aapp;
 -(void)setAppName:(NSString*)aappName;
 -(void)setAppVersion:(NSString*)aappVersion;
--(int)processArgs:(int)argc :(char**)argv;
+-(int)processArgs:(int)argc :(const char**)argv;
 
 @end

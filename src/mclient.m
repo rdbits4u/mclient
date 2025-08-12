@@ -6,7 +6,6 @@
 int
 main(int argc, const char** argv)
 {
-    [NSAutoreleasePool new];
     log_init();
     NSLog(@"main: argc %d", argc);
     NSLog(@"main: %@", [NSThread currentThread]);
@@ -33,6 +32,7 @@ main(int argc, const char** argv)
     [delegate setAppName:appName]; // my setter
     NSString* appVersion = [bundleInfo objectForKey:@"CFBundleVersion"];
     [delegate setAppVersion:appVersion]; // my setter
+    [delegate release];
     // setup menu
     NSString* quitMenuItemTitle = [@"Quit " stringByAppendingString:appName];
     NSMenuItem* quitMenuItem = [NSMenuItem alloc];
@@ -42,11 +42,14 @@ main(int argc, const char** argv)
         keyEquivalent:@"q"];
     NSMenu* appMenu = [NSMenu new];
     [appMenu addItem:quitMenuItem];
+    [quitMenuItem release];
     NSMenuItem* appMenuItem = [NSMenuItem new];
     [appMenuItem setSubmenu:appMenu];
+    [appMenu release];
     NSMenu* mainMenu = [NSMenu new];
     [mainMenu addItem:appMenuItem];
     [app setMainMenu:mainMenu];
+    [mainMenu release];
     NSLog(@"main starting main loop");
     [app run];
     return 0;
