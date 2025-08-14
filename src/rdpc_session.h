@@ -41,6 +41,7 @@ struct send_t
     CFSocketRef socketRef;
     CFRunLoopSourceRef runLoopSourceRef;
     bool setupWithWantWrite;
+    MClientView* view;
 
 }
 
@@ -66,8 +67,6 @@ struct send_t
 -(void)setAppName:(NSString*)aappName;
 -(void)setAppVersion:(NSString*)aappVersion;
 -(void)setupRunLoop;
--(bool)canRecv:(int)asck;
--(bool)canSend:(int)asck;
 -(void)doRead;
 -(void)doWrite;
 

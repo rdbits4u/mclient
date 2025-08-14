@@ -31,7 +31,7 @@
     [super dealloc];
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(void)applicationDidFinishLaunching:(NSNotification*)aNotification
 {
     NSLog(@"mainapplicationDidFinishLaunching:");
@@ -66,39 +66,39 @@
     [session setupRunLoop];
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(void)applicationWillTerminate:(NSNotification*)aNotification
 {
     NSLog(@"applicationWillTerminate");
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication*)sender
 {
     NSLog(@"applicationShouldTerminateAfterLastWindowClosed");
     return YES;
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(void)setApp:(NSApplication*)aapp
 {
     app = aapp;
     [app retain];
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(void)setAppName:(NSString*)aappName
 {
     appName = [NSString stringWithString:aappName];
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(void)setAppVersion:(NSString*)aappVersion
 {
     appVersion = [NSString stringWithString:aappVersion];
 }
 
-//*************************************************************************
+//*****************************************************************************
 const char*
 last_strstr(const char* haystack, const char* needle)
 {
@@ -112,7 +112,7 @@ last_strstr(const char* haystack, const char* needle)
     return rv;
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(int)processServerPort:(const char*)arg
 {
     NSLog(@"processServerPort: arg %s", arg);
@@ -182,7 +182,7 @@ last_strstr(const char* haystack, const char* needle)
     return 0;
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(int)processArgs:(int)argc :(const char**)argv
 {
     NSLog(@"processArgs:");

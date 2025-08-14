@@ -3,7 +3,7 @@
 #import "rdpc_session.h"
 #import "mclient_view.h"
 
-//*************************************************************************
+//*****************************************************************************
 // callback
 static void
 socketCallback(CFSocketRef theSocketRef,
@@ -29,7 +29,7 @@ socketCallback(CFSocketRef theSocketRef,
     }
 }
 
-//*************************************************************************
+//*****************************************************************************
 // callback
 // int (*log_msg)(struct rdpc_t* rdpc, const char* msg);
 static int
@@ -39,7 +39,7 @@ cb_rdpc_log_msg(struct rdpc_t* rdpc, const char* msg)
     return LIBRDPC_ERROR_NONE;
 }
 
-//*************************************************************************
+//*****************************************************************************
 // callback
 // int (*send_to_server)(struct rdpc_t* rdpc, void* data, uint32_t bytes);
 static int
@@ -61,7 +61,7 @@ cb_rdpc_send_to_server(struct rdpc_t* rdpc, void* data, uint32_t bytes)
     return LIBRDPC_ERROR_PARAM;
 }
 
-//*************************************************************************
+//*****************************************************************************
 // callback
 // int (*set_surface_bits)(struct rdpc_t* rdpc,
 //                        struct bitmap_data_t* bitmap_data);
@@ -85,7 +85,7 @@ cb_rdpc_set_surface_bits(struct rdpc_t* rdpc,
     return LIBRDPC_ERROR_PARAM;
 }
 
-//*************************************************************************
+//*****************************************************************************
 // int (*frame_marker)(struct rdpc_t* rdpc, uint16_t frame_action,
 //                     uint32_t frame_id);
 static int
@@ -149,27 +149,132 @@ cb_rdpc_pointer_cached(struct rdpc_t* rdpc, uint16_t cache_index)
     return LIBRDPC_ERROR_PARAM;
 }
 
+//*****************************************************************************
+static int
+l_poll(struct pollfd *fds, nfds_t nfds, int timeout)
+{
+    int rv;
+    while ((rv = poll(fds, nfds, timeout)) == -1)
+    {
+        if (errno == EINTR) continue;
+        break;
+    }
+    return rv;
+}
+
+//*****************************************************************************
+static int
+l_send(int sck, const char* data, size_t bytes)
+{
+    int send_rv;
+    while ((send_rv = send(sck, data, bytes, 0)) == -1)
+    {
+        if (errno == EINTR) continue;
+        if (errno == EINPROGRESS) return 0; // ok
+        return -1;
+    }
+    return send_rv == 0 ? -1 | send_rv;
+}
+
+//*****************************************************************************
+static int
+l_recv(int sck, char* data, size_t bytes)
+{
+    int recv_rv;
+    while ((recv_rv = recv(sck, data, bytes, 0)) == -1)
+    {
+        if (errno == EINTR) continue;
+        if (errno == EINPROGRESS) return 0; // ok
+        return -1;
+    }
+    return recv_rv == 0 ? -1 : recv_rv;
+}
+
+//*****************************************************************************
+static int
+l_fcntl(int fd, int op, int val)
+{
+    int rv;
+    while ((rv = fcntl(sck, op, val)) == -1)
+    {
+        if (errno == EINTR) continue;
+        break;
+    }
+    return rv;
+}
+
+//*****************************************************************************
+static int
+l_connect(int sck, const struct sockaddr* addr, socklen_t addr_size)
+{
+    int rv;
+    while ((rv = connect(sck, addr, addr_size)) == -1)
+    {
+        if (errno == EINTR) continue;
+        if (errno == EINPROGRESS) return 0; // ok
+    }
+    return rv;
+}
+
+//*****************************************************************************
+static bool
+can_recv(int asck)
+{
+    struct pollfd polfds[2];
+    memset(polfds, 0, sizeof(polfds));
+    polfds[0].fd = asck;
+    polfds[0].events = POLLIN;
+    int poll_rv = l_poll(polfds, 1, 0);
+    if (poll_rv > 0)
+    {
+        if ((polfds[0].revents & POLLIN) != 0)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+//*****************************************************************************
+static bool
+can_send(int asck)
+{
+    struct pollfd polfds[2];
+    memset(polfds, 0, sizeof(polfds));
+    polfds[0].fd = asck;
+    polfds[0].events = POLLOUT;
+    int poll_rv = l_poll(polfds, 1, 0);
+    if (poll_rv > 0)
+    {
+        if ((polfds[0].revents & POLLOUT) != 0)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 @implementation RDPConnect
 
-//*************************************************************************
+//*****************************************************************************
 -(void)setServerName:(NSString*)aserverName
 {
     serverName = [NSString stringWithString:aserverName];
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(NSString*)getServerName
 {
     return serverName;
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(void)setServerPort:(NSString*)aserverPort
 {
     serverPort = [NSString stringWithString:aserverPort];
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(NSString*)getServerPort
 {
     return serverPort;
@@ -179,7 +284,7 @@ cb_rdpc_pointer_cached(struct rdpc_t* rdpc, uint16_t cache_index)
 
 @implementation RDPSession
 
-//*************************************************************************
+//*****************************************************************************
 -(RDPSession*)initWithSettings
         :(struct rdpc_settings_t*)asettings
         :(RDPConnect*)aconnectInfo
@@ -211,7 +316,7 @@ cb_rdpc_pointer_cached(struct rdpc_t* rdpc, uint16_t cache_index)
     return self;
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(int)sendToServer:(void*)adata :(uint32_t)abytes
 {
     NSLog(@"sendToServer:");
@@ -220,20 +325,18 @@ cb_rdpc_pointer_cached(struct rdpc_t* rdpc, uint16_t cache_index)
         return 0;
     }
     char* save_data = (char*)adata;
-    uint32_t save_bytes = abytes;
-    if ((send_head == NULL) && [self canSend:sck])
+    size_t save_bytes = abytes;
+    if ((send_head == NULL) && can_send(sck))
     {
-        int send_rv;
-        while ((send_rv = send(sck, adata, abytes, 0)) == -1)
+        int send_rv = l_send(sck, save_data, save_bytes);
+        if (send_rv == -1)
         {
-            if (errno == EINTR) continue;
-            if (errno == EINPROGRESS) break; // ok
             return 1;
         }
-        NSLog(@"sendToServer: abytes %d send_rv %d", abytes, send_rv);
+        NSLog(@"sendToServer: save_bytes %ld send_rv %d", save_bytes, send_rv);
         if (send_rv > 0)
         {
-            if (send_rv >= abytes)
+            if (((size_t)send_rv) >= save_bytes)
             {
                 // all sent, ok
                 return 0;
@@ -242,17 +345,14 @@ cb_rdpc_pointer_cached(struct rdpc_t* rdpc, uint16_t cache_index)
             save_bytes -= send_rv;
         }
     }
-    char* send_data = (char*)malloc(save_bytes);
-    if (send_data == NULL)
+    struct send_t* send_obj = (struct send_t*)
+            malloc(sizeof(struct send_t) + save_bytes);
+    if (send_obj == NULL)
     {
         return 2;
     }
-    struct send_t* send_obj = (struct send_t*)calloc(1, sizeof(struct send_t));
-    if (send_obj == NULL)
-    {
-        free(send_data);
-        return 3;
-    }
+    memset(send_obj, 0, sizeof(struct send_t));
+    char* send_data = (char*)(send_obj + 1);
     memcpy(send_data, save_data, save_bytes);
     send_obj->out_data_bytes = save_bytes;
     send_obj->out_data = send_data;
@@ -270,7 +370,7 @@ cb_rdpc_pointer_cached(struct rdpc_t* rdpc, uint16_t cache_index)
     return 0;
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(int)setSurfaceBits:(struct bitmap_data_t*)abitmap_data
 {
     NSLog(@"RDPSession setSurfaceBits:");
@@ -280,6 +380,7 @@ cb_rdpc_pointer_cached(struct rdpc_t* rdpc, uint16_t cache_index)
     return 0;
 }
 
+//*****************************************************************************
 -(int)frameMarker:(uint16_t)frame_action :(uint32_t)frame_id
 {
     NSLog(@"RDPSession frameMarker:");
@@ -290,21 +391,21 @@ cb_rdpc_pointer_cached(struct rdpc_t* rdpc, uint16_t cache_index)
     return 0;
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(int)pointerUpdate:(struct pointer_t*)apointer
 {
     NSLog(@"RDPSession pointerUpdate:");
     return 0;
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(int)pointerCached:(uint16_t)cache_index
 {
     NSLog(@"RDPSession pointerCached:");
     return 0;
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(int)connectToServer
 {
     struct sockaddr_un unix_addr;
@@ -315,7 +416,7 @@ cb_rdpc_pointer_cached(struct rdpc_t* rdpc, uint16_t cache_index)
     NSLog(@"RDPSession connectToServer:");
     NSString* serverName = [connectInfo getServerName];
     NSString* serverPort = [connectInfo getServerPort];
-    if (serverName == NULL)
+    if (serverName == nil)
     {
         // unix domain socket
         memset(&unix_addr, 0, sizeof(unix_addr));
@@ -347,42 +448,37 @@ cb_rdpc_pointer_cached(struct rdpc_t* rdpc, uint16_t cache_index)
         return 2;
     }
     // set non blocking
-    int val1;
-    while ((val1 = fcntl(sck, F_GETFL, 0)) == -1)
+    int val1 = l_fcntl(sck, F_GETFL, 0);
+    if (val1 == -1)
     {
-        if (errno == EINTR) continue;
         return 3;
     }
     if ((val1 & O_NONBLOCK) == 0)
     {
         val1 = val1 | O_NONBLOCK;
-        fcntl(sck, F_SETFL, val1);
+        l_fcntl(sck, F_SETFL, val1);
     }
     // connect
-    while ((val1 = connect(sck, addr, addr_size)) == -1)
+    val1 = l_connect(sck, addr, addr_size);
+    if (val1 == -1)
     {
-        if (errno == EINTR) continue;
-        if (errno == EINPROGRESS) break; // ok
         return 4;
     }
     return 0;
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(int)readProcessServerData
 {
     NSLog(@"readProcessServerData:");
-    if (![self canRecv:sck])
+    if (!can_recv(sck))
     {
         return 0;
     }
-    int to_read = in_data_size - recv_start;
-    int recv_rv;
-    int val1;
-    while ((recv_rv = recv(sck, in_data + recv_start, to_read, 0)) == -1)
+    size_t to_read = in_data_size - recv_start;
+    int recv_rv = l_recv(sck, in_data + recv_start, to_read);
+    if (recv_rv == -1)
     {
-        if (errno == EINTR) continue;
-        if (errno == EINPROGRESS) return 0; // ok
         return 1;
     }
     NSLog(@"readProcessServerData: recv_rv %d", recv_rv);
@@ -417,18 +513,14 @@ cb_rdpc_pointer_cached(struct rdpc_t* rdpc, uint16_t cache_index)
             }
         }
     }
-    else
-    {
-        return 4;
-    }
     return 0;
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(int)processWriteServerData
 {
     NSLog(@"processWriteServerData:");
-    if (![self canSend:sck])
+    if (!can_send(sck))
     {
         return 0;
     }
@@ -447,13 +539,11 @@ cb_rdpc_pointer_cached(struct rdpc_t* rdpc, uint16_t cache_index)
     if (send_head != NULL)
     {
         struct send_t* send_obj = send_head;
-        int send_rv;
         char* data = send_obj->out_data + send_obj->sent;
         size_t bytes = send_obj->out_data_bytes - send_obj->sent;
-        while ((send_rv = send(sck, data, bytes, 0)) == -1)
+        int send_rv = l_send(sck, data, bytes);
+        if (send_rv == -1)
         {
-            if (errno == EINTR) continue;
-            if (errno == EINPROGRESS) break; // ok
             return 2;
         }
         NSLog(@"processWriteServerData: bytes %ld send_rv %d", bytes, send_rv);
@@ -468,25 +558,20 @@ cb_rdpc_pointer_cached(struct rdpc_t* rdpc, uint16_t cache_index)
                     // if send_head is null, set send_tail to null
                     send_tail = NULL;
                 }
-                free(send_obj->out_data);
                 free(send_obj);
             }
-        }
-        else
-        {
-            return 3;
         }
     }
     return 0;
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(void)sendMouseMovedEvent:(uint16_t)x :(uint16_t)y
 {
     rdpc_send_mouse_event(rdpc, PTRFLAGS_MOVE, x, y);
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(void)sendMouseDownEvent:(uint16_t)but :(uint16_t)x :(uint16_t)y
 {
     uint16_t flags = PTRFLAGS_DOWN;
@@ -500,7 +585,7 @@ cb_rdpc_pointer_cached(struct rdpc_t* rdpc, uint16_t cache_index)
     rdpc_send_mouse_event(rdpc, flags, x, y);
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(void)sendMouseUpEvent:(uint16_t)but :(uint16_t)x :(uint16_t)y
 {
     uint16_t flags = 0;
@@ -514,29 +599,29 @@ cb_rdpc_pointer_cached(struct rdpc_t* rdpc, uint16_t cache_index)
     rdpc_send_mouse_event(rdpc, flags, x, y);
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(void)setApp:(NSApplication*)aapp
 {
     app = aapp;
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(void)setAppName:(NSString*)aappName
 {
     appName = [NSString stringWithString:aappName];
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(void)setAppVersion:(NSString*)aappVersion
 {
     appVersion = [NSString stringWithString:aappVersion];
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(void)setupRunLoop
 {
     bool want_write = (connected == false) || (send_head != NULL);
-    if (runLoopSourceRef != NULL && (want_write == setupWithWantWrite))
+    if ((runLoopSourceRef != NULL) && (want_write == setupWithWantWrite))
     {
         // do not need to setup run loop
         return;
@@ -589,53 +674,7 @@ cb_rdpc_pointer_cached(struct rdpc_t* rdpc, uint16_t cache_index)
     CFRunLoopAddSource(runLoopRef, runLoopSourceRef, kCFRunLoopDefaultMode);
 }
 
-//*************************************************************************
--(bool)canRecv:(int)asck
-{
-    struct pollfd polfds[2];
-    memset(polfds, 0, sizeof(polfds));
-    polfds[0].fd = asck;
-    polfds[0].events = POLLIN;
-    int poll_rv;
-    while ((poll_rv = poll(polfds, 1, 0)) == -1)
-    {
-        if (errno == EINTR) continue;
-        break;
-    }
-    if (poll_rv > 0)
-    {
-        if ((polfds[0].revents & POLLIN) != 0)
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
-//*************************************************************************
--(bool)canSend:(int)asck
-{
-    struct pollfd polfds[2];
-    memset(polfds, 0, sizeof(polfds));
-    polfds[0].fd = asck;
-    polfds[0].events = POLLOUT;
-    int poll_rv;
-    while ((poll_rv = poll(polfds, 1, 0)) == -1)
-    {
-        if (errno == EINTR) continue;
-        break;
-    }
-    if (poll_rv > 0)
-    {
-        if ((polfds[0].revents & POLLOUT) != 0)
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
-//*************************************************************************
+//*****************************************************************************
 -(void)doRead;
 {
     NSLog(@"doRead:");
@@ -647,7 +686,7 @@ cb_rdpc_pointer_cached(struct rdpc_t* rdpc, uint16_t cache_index)
     [self setupRunLoop];
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(void)doWrite;
 {
     NSLog(@"doWrite:");
@@ -659,7 +698,7 @@ cb_rdpc_pointer_cached(struct rdpc_t* rdpc, uint16_t cache_index)
     [self setupRunLoop];
 }
 
-//*************************************************************************
+//*****************************************************************************
 -(int)createWindow:(int)awidth :(int)aheight
 {
     NSLog(@"createWindow:");
@@ -677,7 +716,7 @@ cb_rdpc_pointer_cached(struct rdpc_t* rdpc, uint16_t cache_index)
     [window makeKeyAndOrderFront:nil];
     [window setAcceptsMouseMovedEvents:TRUE];
     // create NSView
-    MClientView* view = [MClientView alloc];
+    view = [MClientView alloc];
     [view initWithFrame:NSMakeRect(0, 0, 1, 1)];
     [view setSession:self];
     [[window contentView] addSubview:view];
