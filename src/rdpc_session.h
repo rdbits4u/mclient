@@ -53,6 +53,8 @@ struct send_t
 -(int)frameMarker:(uint16_t)frame_action :(uint32_t)frame_id;
 -(int)pointerUpdate:(struct pointer_t*)apointer;
 -(int)pointerCached:(uint16_t)cache_index;
+-(int)pointerSystem:(uint32_t)id;
+-(int)pointerPos:(uint16_t)x :(uint16_t)y;
 
 -(int)connectToServer;
 -(int)readProcessServerData;

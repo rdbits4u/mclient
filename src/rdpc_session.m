@@ -157,6 +157,47 @@ cb_rdpc_pointer_cached(struct rdpc_t* rdpc, uint16_t cache_index)
 }
 
 //*****************************************************************************
+// callback
+// int (*pointer_system)(struct rdpc_t* rdpc,
+//                       uint32_t id);
+static int
+cb_rdpc_pointer_system(struct rdpc_t* rdpc, uint32_t id)
+{
+    NSLog(@"cb_rdpc_pointer_system:");
+    if (rdpc != NULL)
+    {
+        if (rdpc->user != NULL)
+        {
+            RDPSession* session = (RDPSession*)(rdpc->user);
+            [session pointerSystem:id];
+            return LIBRDPC_ERROR_NONE;
+        }
+    }
+    return LIBRDPC_ERROR_PARAM;
+}
+
+//*****************************************************************************
+// callback
+// int (*pointer_pos)(struct rdpc_t* rdpc,
+//                    uint16_t x, uint16_t y);
+static int
+cb_rdpc_pointer_pos(struct rdpc_t* rdpc, uint16_t x, uint16_t y)
+{
+    NSLog(@"cb_rdpc_pointer_pos:");
+    if (rdpc != NULL)
+    {
+        if (rdpc->user != NULL)
+        {
+            RDPSession* session = (RDPSession*)(rdpc->user);
+            [session pointerPos:x :y];
+            return LIBRDPC_ERROR_NONE;
+        }
+    }
+    return LIBRDPC_ERROR_PARAM;
+}
+
+
+//*****************************************************************************
 static int
 l_poll(struct pollfd *fds, nfds_t nfds, int timeout)
 {
@@ -314,6 +355,8 @@ can_send(int asck)
         rdpc->frame_marker = cb_rdpc_frame_marker;
         rdpc->pointer_update = cb_rdpc_pointer_update;
         rdpc->pointer_cached = cb_rdpc_pointer_cached;
+        rdpc->pointer_system = cb_rdpc_pointer_system;
+        rdpc->pointer_pos = cb_rdpc_pointer_pos;
 
         connectInfo = aconnectInfo;
         [connectInfo retain];
@@ -403,7 +446,17 @@ can_send(int asck)
 //*****************************************************************************
 -(int)pointerUpdate:(struct pointer_t*)apointer
 {
-    NSLog(@"RDPSession pointerUpdate:");
+    NSLog(@"RDPSession pointerUpdate: bpp %d", apointer->xor_bpp);
+    NSData* data = [[NSData alloc] initWithBytes:apointer->xor_mask_data
+            length:apointer->length_xor_mask];
+    NSImage* image = [[NSImage alloc] initWithData:data];
+    NSPoint hotspot = NSMakePoint(apointer->hotx, apointer->hoty);
+    NSCursor* cur = [[NSCursor alloc] initWithImage:image
+            hotSpot:hotspot];
+    [cur set];
+    [cur release];
+    [image release];
+    [data release];
     return 0;
 }
 
@@ -411,6 +464,20 @@ can_send(int asck)
 -(int)pointerCached:(uint16_t)cache_index
 {
     NSLog(@"RDPSession pointerCached:");
+    return 0;
+}
+
+//*****************************************************************************
+-(int)pointerSystem:(uint32_t)id
+{
+    NSLog(@"RDPSession pointerSystem:");
+    return 0;
+}
+
+//*****************************************************************************
+-(int)pointerPos:(uint16_t)x :(uint16_t)y
+{
+    NSLog(@"RDPSession pointerPos:");
     return 0;
 }
 

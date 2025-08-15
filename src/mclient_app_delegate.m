@@ -103,7 +103,7 @@
 }
 
 //*****************************************************************************
-const char*
+static const char*
 last_strstr(const char* haystack, const char* needle)
 {
     const char* rv = NULL;
