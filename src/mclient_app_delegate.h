@@ -1,6 +1,6 @@
 
-#import <Cocoa/Cocoa.h>
-#import "rdpc_session.h"
+@class RDPSession;
+@class RDPConnect;
 
 @interface MClientAppDelegate : NSObject <NSApplicationDelegate>
 {

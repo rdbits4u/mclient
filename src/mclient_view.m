@@ -1,5 +1,14 @@
 
+#include <poll.h>
+#include <librdpc.h>
+#include <libsvc.h>
+#include <libcliprdr.h>
+#include <librdpsnd.h>
+#import <Cocoa/Cocoa.h>
+#import "mclient_app_delegate.h"
 #import "mclient_view.h"
+#import "rdpc_session.h"
+#import "mclient_log.h"
 
 @implementation MClientView
 
@@ -89,7 +98,7 @@
     clickLocation = [self toClientArea:clickLocation];
     uint16_t x = clickLocation.x + 0.5;
     uint16_t y = clickLocation.y + 0.5;
-    NSLog(@"mouseMoved x %f %d y %f %d", clickLocation.x, clickLocation.y, x, y);
+    NSLog(@"mouseMoved x %f %d y %f %d", clickLocation.x, x, clickLocation.y, y);
     [session sendMouseMovedEvent:x :y];
 }
 
@@ -103,7 +112,7 @@
     clickLocation = [self toClientArea:clickLocation];
     uint16_t x = clickLocation.x + 0.5;
     uint16_t y = clickLocation.y + 0.5;
-    NSLog(@"mouseDragged x %f %d y %f %d", clickLocation.x, clickLocation.y, x, y);
+    NSLog(@"mouseDragged x %f %d y %f %d", clickLocation.x, x, clickLocation.y, y);
     [session sendMouseMovedEvent:x :y];
 }
 

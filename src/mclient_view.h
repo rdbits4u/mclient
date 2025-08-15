@@ -1,6 +1,5 @@
 
-#import <Cocoa/Cocoa.h>
-#import "rdpc_session.h"
+@class RDPSession;
 
 @interface MClientView : NSView
 {

@@ -1,7 +1,14 @@
 
 #include <poll.h>
-#import "rdpc_session.h"
+#include <librdpc.h>
+#include <libsvc.h>
+#include <libcliprdr.h>
+#include <librdpsnd.h>
+#import <Cocoa/Cocoa.h>
+#import "mclient_app_delegate.h"
 #import "mclient_view.h"
+#import "rdpc_session.h"
+#import "mclient_log.h"
 
 //*****************************************************************************
 // callback
@@ -173,7 +180,7 @@ l_send(int sck, const char* data, size_t bytes)
         if (errno == EINPROGRESS) return 0; // ok
         return -1;
     }
-    return send_rv == 0 ? -1 | send_rv;
+    return send_rv == 0 ? -1 : send_rv;
 }
 
 //*****************************************************************************
@@ -195,7 +202,7 @@ static int
 l_fcntl(int fd, int op, int val)
 {
     int rv;
-    while ((rv = fcntl(sck, op, val)) == -1)
+    while ((rv = fcntl(fd, op, val)) == -1)
     {
         if (errno == EINTR) continue;
         break;

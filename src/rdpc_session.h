@@ -1,7 +1,4 @@
 
-#import <Cocoa/Cocoa.h>
-#include <librdpc.h>
-
 @interface RDPConnect : NSObject
 {
     NSString* serverName;
@@ -22,6 +19,8 @@ struct send_t
     char* out_data;
     struct send_t* next;
 };
+
+@class MClientView;
 
 @interface RDPSession : NSObject
 {
