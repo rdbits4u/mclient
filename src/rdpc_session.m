@@ -333,6 +333,7 @@ can_send(int asck)
     }
     char* save_data = (char*)adata;
     size_t save_bytes = abytes;
+    size_t sent = 0;
     if ((send_head == NULL) && can_send(sck))
     {
         int send_rv = l_send(sck, save_data, save_bytes);
@@ -343,13 +344,14 @@ can_send(int asck)
         NSLog(@"sendToServer: save_bytes %ld send_rv %d", save_bytes, send_rv);
         if (send_rv > 0)
         {
-            if (((size_t)send_rv) >= save_bytes)
+            sent += send_rv;
+            if (sent >= save_bytes)
             {
                 // all sent, ok
                 return 0;
             }
-            save_data += send_rv;
-            save_bytes -= send_rv;
+            save_data += sent;
+            save_bytes -= sent;
         }
     }
     struct send_t* send_obj = (struct send_t*)
@@ -495,7 +497,7 @@ can_send(int asck)
         {
             return 2;
         }
-        int end = recv_start + recv_rv;
+        size_t end = recv_start + recv_rv;
         uint32_t bp;
         int rv;
         while (end > 0)
