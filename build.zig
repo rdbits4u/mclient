@@ -17,11 +17,13 @@ pub fn build(b: *std.Build) void
     mclient.addIncludePath(b.path("../svc/include"));
     mclient.addIncludePath(b.path("../cliprdr/include"));
     mclient.addIncludePath(b.path("../rdpsnd/include"));
+    mclient.addIncludePath(b.path("../librfxcodec/include"));
     mclient.addCSourceFiles(.{ .files = mclient_sources, } );
     mclient.addObjectFile(b.path("../rdpc/zig-out/lib/librdpc.dylib"));
     mclient.addObjectFile(b.path("../svc/zig-out/lib/libsvc.dylib"));
     mclient.addObjectFile(b.path("../cliprdr/zig-out/lib/libcliprdr.dylib"));
     mclient.addObjectFile(b.path("../rdpsnd/zig-out/lib/librdpsnd.dylib"));
+    mclient.addObjectFile(b.path("../librfxcodec/zig-out/lib/librfxdecode.a"));
     mclient.addLibraryPath(.{.cwd_relative = "../rdpc/zig-out/lib"});
     mclient.addLibraryPath(.{.cwd_relative = "../svc/zig-out/lib"});
     mclient.addLibraryPath(.{.cwd_relative = "../cliprdr/zig-out/lib"});

@@ -42,6 +42,10 @@ struct send_t
     bool setupWithWantWrite;
     MClientView* view;
 
+    void* rfxdecoder;
+    char* ddata_ptr;
+    size_t ddata_len;
+
 }
 
 -(RDPSession*)initWithSettings

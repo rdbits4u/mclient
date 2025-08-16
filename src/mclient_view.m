@@ -120,20 +120,20 @@
 -(void)drawRect:(NSRect) dirtyRect
 {
     NSLog(@"drawRect");
-    [[NSColor redColor] set];
-    //NSRectFill(dirtyRect);
-    NSRect rect = NSMakeRect(0, 0, content_size.width, content_size.height);
-    rect = [self fromClientAreaRect:rect];
-    NSRectFill(rect);
+    // [[NSColor redColor] set];
+    // //NSRectFill(dirtyRect);
+    // NSRect rect = NSMakeRect(0, 0, content_size.width, content_size.height);
+    // rect = [self fromClientAreaRect:rect];
+    // NSRectFill(rect);
 
-    [[NSColor greenColor] set];
-    NSBezierPath *line = [NSBezierPath bezierPath];
-    rect = NSMakeRect(0, 0, content_size.width, content_size.height);
-    rect = [self fromClientAreaRect:rect];
-    [line moveToPoint:NSMakePoint(NSMinX(rect), NSMinY(rect))];
-    [line lineToPoint:NSMakePoint(NSMaxX(rect), NSMaxY(rect))];
-    [line setLineWidth:5.0]; /// Make it easy to see
-    [line stroke];
+    // [[NSColor greenColor] set];
+    // NSBezierPath *line = [NSBezierPath bezierPath];
+    // rect = NSMakeRect(0, 0, content_size.width, content_size.height);
+    // rect = [self fromClientAreaRect:rect];
+    // [line moveToPoint:NSMakePoint(NSMinX(rect), NSMinY(rect))];
+    // [line lineToPoint:NSMakePoint(NSMaxX(rect), NSMaxY(rect))];
+    // [line setLineWidth:5.0]; /// Make it easy to see
+    // [line stroke];
 }
 
 //*****************************************************************************

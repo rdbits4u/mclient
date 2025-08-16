@@ -10,6 +10,8 @@
 #import "rdpc_session.h"
 #import "mclient_log.h"
 
+#include <rfxcodec_decode.h>
+
 //*****************************************************************************
 // callback
 static void
@@ -425,9 +427,42 @@ can_send(int asck)
 //*****************************************************************************
 -(int)setSurfaceBits:(struct bitmap_data_t*)abitmap_data
 {
-    NSLog(@"RDPSession setSurfaceBits:");
-    if (abitmap_data->codec_id == 0)
+    NSLog(@"RDPSession setSurfaceBits: codec_id %d", abitmap_data->codec_id);
+    if (abitmap_data->codec_id == 3)
     {
+        if (rfxdecoder == NULL)
+        {
+            ddata_len = 1024 * 768 * 4;
+            ddata_ptr = (char*)malloc(ddata_len);
+            if (ddata_ptr == NULL)
+            {
+                ddata_len = 0;
+                return 0;
+            }
+            int rv = rfxcodec_decode_create_ex(1024, 768, RFX_FORMAT_BGRA,
+                    RFX_FLAGS_SAFE, &rfxdecoder);
+            NSLog(@"rfxcodec_decode_create_ex rv %d", rv);
+            if (rv != 0)
+            {
+                free(ddata_ptr);
+                ddata_ptr = NULL;
+                ddata_len = 0;
+                return 0;
+            }
+        }
+        if (rfxdecoder != NULL)
+        {
+            struct rfx_rect* rects = NULL;
+            int num_rects = 0;
+            struct rfx_tile* tiles = NULL;
+            int num_tiles = 0;
+            int rv = rfxcodec_decode_ex(rfxdecoder,
+                    abitmap_data->bitmap_data, abitmap_data->bitmap_data_len,
+                    ddata_ptr, 1024, 768, 1024 * 4,
+                    &rects, &num_rects, &tiles, &num_tiles, 0);
+            NSLog(@"rfxcodec_decode_ex rv %d num_rects %d num_tiles %d",
+                    rv, num_rects, num_tiles);
+        }
     }
     return 0;
 }
