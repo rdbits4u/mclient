@@ -45,6 +45,8 @@ struct send_t
     void* rfxdecoder;
     char* ddata_ptr;
     size_t ddata_len;
+    uint32_t awidth;
+    uint32_t aheight;
 
 }
 

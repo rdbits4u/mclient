@@ -4,6 +4,7 @@
 #include <libsvc.h>
 #include <libcliprdr.h>
 #include <librdpsnd.h>
+#include <rfxcodec_decode.h>
 #import <Cocoa/Cocoa.h>
 #import "mclient_app_delegate.h"
 #import "mclient_view.h"

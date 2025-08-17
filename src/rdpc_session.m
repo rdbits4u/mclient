@@ -4,13 +4,12 @@
 #include <libsvc.h>
 #include <libcliprdr.h>
 #include <librdpsnd.h>
+#include <rfxcodec_decode.h>
 #import <Cocoa/Cocoa.h>
 #import "mclient_app_delegate.h"
 #import "mclient_view.h"
 #import "rdpc_session.h"
 #import "mclient_log.h"
-
-#include <rfxcodec_decode.h>
 
 //*****************************************************************************
 // callback
@@ -430,24 +429,29 @@ can_send(int asck)
     NSLog(@"RDPSession setSurfaceBits: codec_id %d", abitmap_data->codec_id);
     if (abitmap_data->codec_id == 3)
     {
+        int width = rdpc->cgcc.core.desktopWidth;
+        int height = rdpc->cgcc.core.desktopHeight;
+        awidth = (width + 63) & ~63;
+        aheight = (height + 63) & ~63;
         if (rfxdecoder == NULL)
         {
-            ddata_len = 1024 * 768 * 4;
+            ddata_len = awidth * aheight * 4;
             ddata_ptr = (char*)malloc(ddata_len);
             if (ddata_ptr == NULL)
             {
                 ddata_len = 0;
-                return 0;
+                return 1;
             }
-            int rv = rfxcodec_decode_create_ex(1024, 768, RFX_FORMAT_BGRA,
-                    RFX_FLAGS_SAFE, &rfxdecoder);
-            NSLog(@"rfxcodec_decode_create_ex rv %d", rv);
+            int rv = rfxcodec_decode_create_ex(awidth, aheight,
+                    RFX_FORMAT_BGRA, RFX_FLAGS_SAFE, &rfxdecoder);
+            NSLog(@"rfxcodec_decode_create_ex rv %d awidth %d aheight %d",
+                    rv, awidth, aheight);
             if (rv != 0)
             {
                 free(ddata_ptr);
                 ddata_ptr = NULL;
                 ddata_len = 0;
-                return 0;
+                return 2;
             }
         }
         if (rfxdecoder != NULL)
@@ -458,10 +462,16 @@ can_send(int asck)
             int num_tiles = 0;
             int rv = rfxcodec_decode_ex(rfxdecoder,
                     abitmap_data->bitmap_data, abitmap_data->bitmap_data_len,
-                    ddata_ptr, 1024, 768, 1024 * 4,
+                    ddata_ptr, awidth, aheight, awidth * 4,
                     &rects, &num_rects, &tiles, &num_tiles, 0);
             NSLog(@"rfxcodec_decode_ex rv %d num_rects %d num_tiles %d",
                     rv, num_rects, num_tiles);
+            if (rv != 0)
+            {
+                return 3;
+            }
+            [view drawTiles:ddata_ptr :awidth :aheight :rects :num_rects
+                    :tiles :num_tiles];
         }
     }
     return 0;

@@ -4,6 +4,7 @@
 #include <libsvc.h>
 #include <libcliprdr.h>
 #include <librdpsnd.h>
+#include <rfxcodec_decode.h>
 #import <Cocoa/Cocoa.h>
 #import "mclient_app_delegate.h"
 #import "mclient_view.h"
@@ -24,7 +25,14 @@
 -(BOOL)isFlipped
 {
     //NSLog(@"isFlipped");
-    return TRUE;
+    return YES;
+}
+
+//*****************************************************************************
+-(BOOL)acceptsFirstResponder
+{
+    //NSLog(@"acceptsFirstResponder");
+    return YES;
 }
 
 //*****************************************************************************
@@ -60,6 +68,16 @@
     [area initWithRect:bounds options:opts owner:self userInfo:nil];
     [self addTrackingArea:area];
     [super updateTrackingAreas]; // Call super's implementation
+    // create / recreate backing store
+    if (bs_context != NULL)
+    {
+        CGContextRelease(bs_context);
+    }
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    bs_context = CGBitmapContextCreate(NULL,
+            NSWidth(contentRect), NSHeight(contentRect), 8, 0, colorSpace,
+            kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst);
+    CGColorSpaceRelease(colorSpace);
 }
 
 //*****************************************************************************
@@ -120,20 +138,129 @@
 -(void)drawRect:(NSRect) dirtyRect
 {
     NSLog(@"drawRect");
-    // [[NSColor redColor] set];
-    // //NSRectFill(dirtyRect);
-    // NSRect rect = NSMakeRect(0, 0, content_size.width, content_size.height);
-    // rect = [self fromClientAreaRect:rect];
-    // NSRectFill(rect);
+    if (bs_context != NULL)
+    {
+        CGContextRef cgContext =
+                [[NSGraphicsContext currentContext] CGContext];
+        if (cgContext != NULL)
+        {
+            NSLog(@"drawRect: got CGContext");
+            CGImageRef cgImage = CGBitmapContextCreateImage(bs_context);
+            if (cgImage != NULL)
+            {
+                CGContextSaveGState(cgContext);
+                CGRect rect = dirtyRect;
+                CGContextClipToRect(cgContext, rect);
+                rect.origin = origin;
+                rect.size = content_size;
+                CGContextDrawImage(cgContext, rect, cgImage);
+                CGContextRestoreGState(cgContext);
+                CGImageRelease(cgImage);
+            }
+        }
+    }
+    else
+    {
+        [[NSColor blueColor] set];
+        NSRectFill(dirtyRect);
+    }
+    [super drawRect:dirtyRect];
+}
 
-    // [[NSColor greenColor] set];
-    // NSBezierPath *line = [NSBezierPath bezierPath];
-    // rect = NSMakeRect(0, 0, content_size.width, content_size.height);
-    // rect = [self fromClientAreaRect:rect];
-    // [line moveToPoint:NSMakePoint(NSMinX(rect), NSMinY(rect))];
-    // [line lineToPoint:NSMakePoint(NSMaxX(rect), NSMaxY(rect))];
-    // [line setLineWidth:5.0]; /// Make it easy to see
-    // [line stroke];
+//*****************************************************************************
+-(int)drawTiles:(char*)pixels :(size_t)width :(size_t)height
+        :(struct rfx_rect*)rects :(int)numRects
+        :(struct rfx_tile*)tiles :(int)numTiles
+{
+    CGColorSpaceRef colorSpace;
+    CGContextRef con;
+    CGImageRef cgImage;
+    CGRect* clip_rects;
+    NSRect rect;
+    char* tile_pixels;
+    char* src;
+    char* dst;
+    int x;
+    int y;
+    int cx;
+    int cy;
+    int index;
+    int jndex;
+
+    NSLog(@"drawTiles:");
+    if (bs_context == NULL)
+    {
+        return 1;
+    }
+    clip_rects = (CGRect*)malloc(sizeof(CGRect) * numRects);
+    if (clip_rects == NULL)
+    {
+        return 2;
+    }
+    tile_pixels = (char*)malloc(64 * 64 * 4);
+    if (tile_pixels == NULL)
+    {
+        free(clip_rects);
+        return 3;
+    }
+    colorSpace = CGColorSpaceCreateDeviceRGB();
+    if (colorSpace == NULL)
+    {
+        free(tile_pixels);
+        free(clip_rects);
+        return 4;
+    }
+    con = CGBitmapContextCreate(tile_pixels,
+            64, 64, 8, 64 * 4, colorSpace,
+            kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst);
+    if (con == NULL)
+    {
+        CGColorSpaceRelease(colorSpace);
+        free(tile_pixels);
+        free(clip_rects);
+        return 5;
+    }
+    for (index = 0; index < numRects; index++)
+    {
+        x = rects[index].x;
+        y = rects[index].y;
+        cx = rects[index].cx;
+        cy = rects[index].cy;
+        clip_rects[index] = CGRectMake(x, y, cx, cy);
+    }
+    CGContextSaveGState(bs_context);
+    CGContextClipToRects(bs_context, clip_rects, numRects);
+    for (index = 0; index < numTiles; index++)
+    {
+        x = tiles[index].x;
+        y = tiles[index].y;
+        cx = tiles[index].cx;
+        cy = tiles[index].cy;
+        rect = NSMakeRect(x, y, cx, cy);
+        // flip tile image
+        src = pixels + width * 4 * y + x * 4;
+        dst = tile_pixels + (64 * 64 * 4 - 64 * 4);
+        for (jndex = 0; jndex < 64; jndex++)
+        {
+            memcpy(dst, src, 64 * 4);
+            dst -= 64 * 4;
+            src += width * 4;
+        }
+        cgImage = CGBitmapContextCreateImage(con);
+        if (cgImage != NULL)
+        {
+            CGContextDrawImage(bs_context, rect, cgImage);
+            CGImageRelease(cgImage);
+        }
+        rect = [self fromClientAreaRect:rect];
+        [self setNeedsDisplayInRect:rect];
+    }
+    CGContextRestoreGState(bs_context);
+    CGContextRelease(con);
+    CGColorSpaceRelease(colorSpace);
+    free(tile_pixels);
+    free(clip_rects);
+    return 0;
 }
 
 //*****************************************************************************
