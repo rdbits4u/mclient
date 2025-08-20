@@ -12,6 +12,7 @@ pub fn build(b: *std.Build) void
             .target = target, .optimize = optimize, .strip = do_strip});
     mclient.linkLibC();
     mclient.linkFramework("Cocoa");
+    mclient.linkFramework("QuartzCore");
     mclient.addIncludePath(b.path("../common"));
     mclient.addIncludePath(b.path("../rdpc/include"));
     mclient.addIncludePath(b.path("../svc/include"));

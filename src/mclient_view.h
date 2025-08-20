@@ -1,12 +1,19 @@
 
 @class RDPSession;
 
+@interface MyCustomLayer : CALayer
+// You can add custom properties or methods here
+@end
+
 @interface MClientView : NSView
 {
     NSPoint origin;
     NSSize content_size;
     RDPSession* session;
-    CGContextRef bs_context;
+    //CGContextRef bs_context;
+    CGLayerRef bs_layer;
+    NSGraphicsContext* bs_gc;
+    MyCustomLayer* ca_layer;
 }
 
 -(void)setSession:(RDPSession*)asession;
