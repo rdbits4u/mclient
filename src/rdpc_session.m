@@ -705,6 +705,14 @@ can_send(int asck)
         case 1: flags |= PTRFLAGS_BUTTON1; break;
         case 2: flags |= PTRFLAGS_BUTTON2; break;
         case 3: flags |= PTRFLAGS_BUTTON3; break;
+        case 4:
+            flags = PTRXFLAGS_DOWN | PTRXFLAGS_BUTTON1;
+            rdpc_send_mouse_event_ex(rdpc, flags, x, y);
+            return;
+        case 5:
+            flags = PTRXFLAGS_DOWN | PTRXFLAGS_BUTTON2;
+            rdpc_send_mouse_event_ex(rdpc, flags, x, y);
+            return;
         default: return;
     }
     rdpc_send_mouse_event(rdpc, flags, x, y);
@@ -719,6 +727,14 @@ can_send(int asck)
         case 1: flags |= PTRFLAGS_BUTTON1; break;
         case 2: flags |= PTRFLAGS_BUTTON2; break;
         case 3: flags |= PTRFLAGS_BUTTON3; break;
+        case 4:
+            flags = PTRXFLAGS_BUTTON1;
+            rdpc_send_mouse_event_ex(rdpc, flags, x, y);
+            return;
+        case 5:
+            flags = PTRXFLAGS_BUTTON2;
+            rdpc_send_mouse_event_ex(rdpc, flags, x, y);
+            return;
         default: return;
     }
     rdpc_send_mouse_event(rdpc, flags, x, y);

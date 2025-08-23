@@ -143,6 +143,29 @@
 }
 
 //*****************************************************************************
+-(void)otherMouseDown:(NSEvent*)event
+{
+    NSPoint location = [self getLocation:event];
+    int pressed = [event buttonNumber] + 1;
+    [session sendMouseDownEvent:pressed :location.x :location.y];
+}
+
+//*****************************************************************************
+-(void)otherMouseUp:(NSEvent*)event
+{
+    NSPoint location = [self getLocation:event];
+    int pressed = [event buttonNumber] + 1;
+    [session sendMouseUpEvent:pressed :location.x :location.y];
+}
+
+//*****************************************************************************
+-(void)otherMouseDragged:(NSEvent*)event
+{
+    NSPoint location = [self getLocation:event];
+    [session sendMouseMovedEvent:location.x :location.y];
+}
+
+//*****************************************************************************
 -(void)scrollWheel:(NSEvent*)event
 {
     NSPoint location = [self getLocation:event];
