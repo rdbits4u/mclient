@@ -53,7 +53,7 @@ cb_rdpc_log_msg(struct rdpc_t* rdpc, const char* msg)
 static int
 cb_rdpc_send_to_server(struct rdpc_t* rdpc, void* data, uint32_t bytes)
 {
-    NSLog(@"cb_rdpc_send_to_server:");
+    //NSLog(@"cb_rdpc_send_to_server:");
     if (rdpc != NULL)
     {
         if (rdpc->user != NULL)
@@ -77,7 +77,7 @@ static int
 cb_rdpc_set_surface_bits(struct rdpc_t* rdpc,
                          struct bitmap_data_t* bitmap_data)
 {
-    NSLog(@"cb_rdpc_set_surface_bits:");
+    //NSLog(@"cb_rdpc_set_surface_bits:");
     if (rdpc != NULL)
     {
         if (rdpc->user != NULL)
@@ -100,7 +100,7 @@ static int
 cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
                      uint32_t frame_id)
 {
-    NSLog(@"cb_rdpc_frame_marker:");
+    //NSLog(@"cb_rdpc_frame_marker:");
     if (rdpc != NULL)
     {
         if (rdpc->user != NULL)
@@ -370,7 +370,7 @@ can_send(int asck)
 //*****************************************************************************
 -(int)sendToServer:(void*)adata :(uint32_t)abytes
 {
-    NSLog(@"sendToServer:");
+    //NSLog(@"sendToServer:");
     if (abytes < 1)
     {
         return 0;
@@ -385,7 +385,7 @@ can_send(int asck)
         {
             return 1;
         }
-        NSLog(@"sendToServer: save_bytes %ld send_rv %d", save_bytes, send_rv);
+        //NSLog(@"sendToServer: save_bytes %ld send_rv %d", save_bytes, send_rv);
         if (send_rv > 0)
         {
             sent += send_rv;
@@ -426,7 +426,7 @@ can_send(int asck)
 //*****************************************************************************
 -(int)setSurfaceBits:(struct bitmap_data_t*)abitmap_data
 {
-    NSLog(@"RDPSession setSurfaceBits: codec_id %d", abitmap_data->codec_id);
+    //NSLog(@"RDPSession setSurfaceBits: codec_id %d", abitmap_data->codec_id);
     if (abitmap_data->codec_id == 3)
     {
         int width = rdpc->cgcc.core.desktopWidth;
@@ -444,8 +444,8 @@ can_send(int asck)
             }
             int rv = rfxcodec_decode_create_ex(awidth, aheight,
                     RFX_FORMAT_BGRA, RFX_FLAGS_SAFE, &rfxdecoder);
-            NSLog(@"rfxcodec_decode_create_ex rv %d awidth %d aheight %d",
-                    rv, awidth, aheight);
+            //NSLog(@"rfxcodec_decode_create_ex rv %d awidth %d aheight %d",
+            //        rv, awidth, aheight);
             if (rv != 0)
             {
                 free(ddata_ptr);
@@ -464,14 +464,18 @@ can_send(int asck)
                     abitmap_data->bitmap_data, abitmap_data->bitmap_data_len,
                     ddata_ptr, awidth, aheight, awidth * 4,
                     &rects, &num_rects, &tiles, &num_tiles, 0);
-            NSLog(@"rfxcodec_decode_ex rv %d num_rects %d num_tiles %d",
-                    rv, num_rects, num_tiles);
+            //NSLog(@"rfxcodec_decode_ex rv %d num_rects %d num_tiles %d",
+            //        rv, num_rects, num_tiles);
             if (rv != 0)
             {
                 return 3;
             }
-            [view drawTiles:ddata_ptr :awidth :aheight :rects :num_rects
-                    :tiles :num_tiles];
+            int draw_tiles_rv = [view drawTiles:ddata_ptr :awidth :aheight
+                    :rects :num_rects :tiles :num_tiles];
+            if (draw_tiles_rv != 0)
+            {
+                NSLog(@"setSurfaceBits: draw_tiles_rv %d", draw_tiles_rv);
+            }
         }
     }
     return 0;
@@ -480,7 +484,7 @@ can_send(int asck)
 //*****************************************************************************
 -(int)frameMarker:(uint16_t)frame_action :(uint32_t)frame_id
 {
-    NSLog(@"RDPSession frameMarker:");
+    //NSLog(@"RDPSession frameMarker:");
     if (frame_action == SURFACECMD_FRAMEACTION_END)
     {
         rdpc_send_frame_ack(rdpc, frame_id);
@@ -591,7 +595,7 @@ can_send(int asck)
 //*****************************************************************************
 -(int)readProcessServerData
 {
-    NSLog(@"readProcessServerData:");
+    //NSLog(@"readProcessServerData:");
     if (!can_recv(sck))
     {
         return 0;
@@ -602,7 +606,7 @@ can_send(int asck)
     {
         return 1;
     }
-    NSLog(@"readProcessServerData: recv_rv %d", recv_rv);
+    //NSLog(@"readProcessServerData: recv_rv %d", recv_rv);
     if (recv_rv > 0)
     {
         if (!connected)
@@ -640,7 +644,7 @@ can_send(int asck)
 //*****************************************************************************
 -(int)processWriteServerData
 {
-    NSLog(@"processWriteServerData:");
+    //NSLog(@"processWriteServerData:");
     if (!can_send(sck))
     {
         return 0;
@@ -667,7 +671,7 @@ can_send(int asck)
         {
             return 2;
         }
-        NSLog(@"processWriteServerData: bytes %ld send_rv %d", bytes, send_rv);
+        //NSLog(@"processWriteServerData: bytes %ld send_rv %d", bytes, send_rv);
         if (send_rv > 0)
         {
             send_obj->sent += send_rv;
@@ -718,6 +722,30 @@ can_send(int asck)
         default: return;
     }
     rdpc_send_mouse_event(rdpc, flags, x, y);
+}
+
+//*****************************************************************************
+-(void)sendMouseWheel:(int)delta :(bool)isHorizontal :(uint16_t)x :(uint16_t)y
+{
+    uint16_t flags = isHorizontal ? PTRFLAGS_HWHEEL : PTRFLAGS_WHEEL;
+    bool is_neg = false;
+    if (delta < 0)
+    {
+        flags |= PTRFLAGS_WHEEL_NEGATIVE;
+        delta *= -1;
+        is_neg = true;
+    }
+    while (delta > 0)
+    {
+        int ldelta = delta > 0xFF ? 0xFF : delta;
+        flags &= 0xFF00;
+        flags |= (is_neg ? -ldelta : ldelta) & 0xFF;
+        if (rdpc_send_mouse_event(rdpc, flags, x, y) != 0)
+        {
+            return;
+        }
+        delta -= ldelta;
+    }
 }
 
 //*****************************************************************************
@@ -798,7 +826,7 @@ can_send(int asck)
 //*****************************************************************************
 -(void)doRead;
 {
-    NSLog(@"doRead:");
+    //NSLog(@"doRead:");
     if ([self readProcessServerData] != 0)
     {
         [app terminate:self];
@@ -810,7 +838,7 @@ can_send(int asck)
 //*****************************************************************************
 -(void)doWrite;
 {
-    NSLog(@"doWrite:");
+    //NSLog(@"doWrite:");
     if ([self processWriteServerData] != 0)
     {
         [app terminate:self];

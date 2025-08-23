@@ -11,36 +11,6 @@
 #import "rdpc_session.h"
 #import "mclient_log.h"
 
-//#import <QuartzCore/QuartzCore.h> // Required for CALayer
-
-@implementation MyCustomLayer
-
-- (id)init
-{
-    self = [super init];
-    if (self)
-    {
-        // Perform custom initialization for your layer
-        self.backgroundColor = [NSColor blueColor].CGColor;
-    }
-    return self;
-}
-
-// Override to provide custom drawing if needed
-- (void)drawInContext:(CGContextRef)ctx
-{
-    NSLog(@"MyCustomLayer drawInContext:");
-    CGRect rect = CGContextGetClipBoundingBox(ctx);
-    NSLog(@"MyCustomLayer drawInContext: x %d y %d width %d height %d",
-            rect.origin.x, rect.origin.y, rect.size.width, rect.size.height);
-    // Custom drawing for your layer
-    CGContextSetRGBFillColor(ctx, 1.0, 0.0, 0.0, 1.0); // Red color
-    //CGContextFillEllipseInRect(ctx, self.bounds);
-    CGContextFillRect(ctx, rect);
-}
-
-@end
-
 @implementation MClientView
 
 //*****************************************************************************
@@ -63,22 +33,6 @@
 {
     //NSLog(@"acceptsFirstResponder:");
     return YES;
-}
-
-//*****************************************************************************
--(BOOL)wantsUpdateLayer1
-{
-    NSLog(@"wantsUpdateLayer:");
-    return YES;
-}
-
-//*****************************************************************************
--(CALayer*)makeBackingLayer1
-{
-    NSLog(@"makeBackingLayer:");
-    //return [[CALayer alloc] init];
-    ca_layer = [[MyCustomLayer alloc] init];
-    return ca_layer;
 }
 
 //*****************************************************************************
@@ -115,148 +69,138 @@
     [self addTrackingArea:area];
     [super updateTrackingAreas]; // Call super's implementation
 
-    if (bs_layer != NULL)
-    {
-        CGLayerRelease(bs_layer);
-        bs_layer = NULL;
-        //bs_context = NULL;
-    }
-
     // create / recreate backing store
-    // if (bs_context != NULL)
-    // {
-    //     CGContextRelease(bs_context);
-    // }
-    // CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-    // bs_context = CGBitmapContextCreate(NULL,
-    //         NSWidth(contentRect), NSHeight(contentRect), 8, 0, colorSpace,
-    //         kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst);
-    // CGColorSpaceRelease(colorSpace);
+    if (bs_context != NULL)
+    {
+        CGContextRelease(bs_context);
+    }
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    bs_context = CGBitmapContextCreate(NULL,
+            NSWidth(contentRect), NSHeight(contentRect), 8, 0, colorSpace,
+            kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst);
+    CGColorSpaceRelease(colorSpace);
 }
 
 //*****************************************************************************
--(void)mouseDown:(NSEvent *)event
+-(NSPoint)getLocation:(NSEvent*)event
 {
-    NSPoint clickLocation;
+    NSPoint location;
     // convert the click location into the view coords
-    clickLocation = [self convertPoint:[event locationInWindow] fromView:nil];
-    clickLocation = [self toClientArea:clickLocation];
-    uint16_t x = clickLocation.x + 0.5;
-    uint16_t y = clickLocation.y + 0.5;
-    NSLog(@"mouseDown x %f y %f", clickLocation.x, clickLocation.y);
-    [session sendMouseDownEvent:1 :x :y];
+    location = [self convertPoint:[event locationInWindow] fromView:nil];
+    location = [self toClientArea:location];
+    location.x = MAX(location.x + 0.5, 0);
+    location.y = MAX(location.y + 0.5, 0);
+    return location;
 }
 
 //*****************************************************************************
--(void)mouseUp:(NSEvent *)event
+-(void)mouseDown:(NSEvent*)event
 {
-    NSPoint clickLocation;
-    // convert the click location into the view coords
-    clickLocation = [self convertPoint:[event locationInWindow] fromView:nil];
-    clickLocation = [self toClientArea:clickLocation];
-    uint16_t x = clickLocation.x + 0.5;
-    uint16_t y = clickLocation.y + 0.5;
-    NSLog(@"mouseUp x %f y %f", clickLocation.x, clickLocation.y);
-    [session sendMouseUpEvent:1 :x :y];
+    NSPoint location = [self getLocation:event];
+    [session sendMouseDownEvent:1 :location.x :location.y];
 }
 
 //*****************************************************************************
--(void)mouseMoved:(NSEvent *)event
+-(void)mouseUp:(NSEvent*)event
 {
-    //NSLog(@"mouseMoved: %@", [NSThread currentThread]);
-    NSPoint clickLocation;
-    // convert the click location into the view coords
-    clickLocation = [self convertPoint:[event locationInWindow] fromView:nil];
-    clickLocation = [self toClientArea:clickLocation];
-    uint16_t x = clickLocation.x + 0.5;
-    uint16_t y = clickLocation.y + 0.5;
-    NSLog(@"mouseMoved x %f %d y %f %d", clickLocation.x, x, clickLocation.y, y);
-    [session sendMouseMovedEvent:x :y];
+    NSPoint location = [self getLocation:event];
+    [session sendMouseUpEvent:1 :location.x :location.y];
 }
 
 //*****************************************************************************
--(void)mouseDragged:(NSEvent *)event
+-(void)mouseMoved:(NSEvent*)event
 {
-    //NSLog(@"mouseMoved: %@", [NSThread currentThread]);
-    NSPoint clickLocation;
-    // convert the click location into the view coords
-    clickLocation = [self convertPoint:[event locationInWindow] fromView:nil];
-    clickLocation = [self toClientArea:clickLocation];
-    uint16_t x = clickLocation.x + 0.5;
-    uint16_t y = clickLocation.y + 0.5;
-    NSLog(@"mouseDragged x %f %d y %f %d", clickLocation.x, x, clickLocation.y, y);
-    [session sendMouseMovedEvent:x :y];
+    NSPoint location = [self getLocation:event];
+    [session sendMouseMovedEvent:location.x :location.y];
+}
+
+//*****************************************************************************
+-(void)mouseDragged:(NSEvent*)event
+{
+    NSPoint location = [self getLocation:event];
+    [session sendMouseMovedEvent:location.x :location.y];
+}
+
+//*****************************************************************************
+-(void)rightMouseDown:(NSEvent*)event
+{
+    NSPoint location = [self getLocation:event];
+    [session sendMouseDownEvent:2 :location.x :location.y];
+}
+
+//*****************************************************************************
+-(void)rightMouseUp:(NSEvent*)event
+{
+    NSPoint location = [self getLocation:event];
+    [session sendMouseUpEvent:2 :location.x :location.y];
+}
+
+//*****************************************************************************
+-(void)rightMouseDragged:(NSEvent*)event
+{
+    NSPoint location = [self getLocation:event];
+    [session sendMouseMovedEvent:location.x :location.y];
+}
+
+//*****************************************************************************
+-(void)scrollWheel:(NSEvent*)event
+{
+    NSPoint location = [self getLocation:event];
+    float dx = [event deltaX] * -120.0;
+    float dy = [event deltaY] * 120;
+    [session sendMouseWheel: dx :true :location.x :location.y];
+    [session sendMouseWheel: dy :false :location.x :location.y];
+}
+
+//*****************************************************************************
+-(void)keyDown:(NSEvent*)event
+{
+    NSLog(@"keyDown: %@", [NSThread currentThread]);
+}
+
+//*****************************************************************************
+-(void)keyUp:(NSEvent*)event
+{
+    NSLog(@"keyUp: %@", [NSThread currentThread]);
 }
 
 //*****************************************************************************
 -(void)drawRect:(NSRect) dirtyRect
 {
-    NSLog(@"drawRect");
-
+    //NSLog(@"drawRect");
     CGContextRef cgContext =
             [[NSGraphicsContext currentContext] CGContext];
-    if (cgContext != NULL)
-    {
-        if (bs_layer == NULL)
-        {
-            //CGContextRef currentContext = UIGraphicsGetCurrentContext();
-            //bs_layer = CGLayerCreateWithContext(currentContext, content_size, NULL);
-            bs_layer = CGLayerCreateWithContext(cgContext, content_size, NULL);
-            //if (bs_layer != NULL)
-            //{
-            //    if (bs_context == NULL)
-            //    {
-            //        bs_context = CGLayerGetContext(bs_layer);
-            //        NSLog(@"drawRect: bs_context set to %p", bs_context);
-            //    }
-            //}
-        }
-        if (bs_gc == NULL)
-        {
-            //bs_gc = [NSGraphicsContext graphicsContextWithCGContext :cgContext flipped:NO];
-            //NSLog(@"drawRect: bs_gc set to %p", bs_gc);
-        }
-    }
-
-    //[NSGraphicsContext saveGraphicsState];
-    //[NSGraphicsContext setCurrentContext:bs_gc];
-    //[NSGraphicsContext restoreGraphicsState];
-
-    if (bs_layer != NULL)
+    if (bs_context != NULL)
     {
         if (cgContext != NULL)
         {
-            CGContextSaveGState(cgContext);
-            CGContextClipToRect(cgContext, dirtyRect);
-            CGContextDrawLayerAtPoint(cgContext, origin, bs_layer);
-            CGContextRestoreGState(cgContext);
-
-            //CGContextFlush(cgContext);
-            //CGContextSynchronize(cgContext);
-
-            //CGLayerRef new_bs_layer = CGLayerCreateWithContext(cgContext, content_size, NULL);
-            //CGContextRef new_bs_context = CGLayerGetContext(new_bs_layer);
-            //CGContextDrawLayerAtPoint(new_bs_context, CGPointMake(0, 0), bs_layer);
-            //CGLayerRelease(bs_layer);
-            //bs_layer = new_bs_layer;
-
+            CGImageRef cgImage = CGBitmapContextCreateImage(bs_context);
+            if (cgImage != NULL)
+            {
+                CGContextSaveGState(cgContext);
+                CGRect rect = dirtyRect;
+                CGContextClipToRect(cgContext, rect);
+                rect.origin = origin;
+                rect.size = content_size;
+                CGContextDrawImage(cgContext, rect, cgImage);
+                //int rc1 = CFGetRetainCount(cgImage);
+                //NSLog(@"drawRect rc1 %d", rc1);
+                CGContextRestoreGState(cgContext);
+                CGImageRelease(cgImage);
+            }
         }
     }
     [super drawRect:dirtyRect];
 }
 
 //*****************************************************************************
--(int)drawTiles:(char*)pixels :(size_t)width :(size_t)height
+-(int)drawTileSet:(char*)pixels :(size_t)width :(size_t)height
         :(struct rfx_rect*)rects :(int)numRects
         :(struct rfx_tile*)tiles :(int)numTiles
+        :(CGRect*)clip_rects :(char*)tile_pixels :(CGContextRef)con
 {
-    CGColorSpaceRef colorSpace;
-    CGContextRef con;
     CGImageRef cgImage;
-    CGContextRef bs_context;
-    CGRect* clip_rects;
     NSRect rect;
-    char* tile_pixels;
     char* src;
     char* dst;
     int x;
@@ -266,45 +210,6 @@
     int index;
     int jndex;
 
-    NSLog(@"drawTiles:");
-    if (bs_layer == NULL)
-    {
-        //[ca_layer setNeedsDisplayInRect:CGRectMake(0, 0, 100, 100)];
-        return 1;
-    }
-    bs_context = CGLayerGetContext(bs_layer);
-    if (bs_context == NULL)
-    {
-        return 1;
-    }
-    clip_rects = (CGRect*)malloc(sizeof(CGRect) * numRects);
-    if (clip_rects == NULL)
-    {
-        return 2;
-    }
-    tile_pixels = (char*)malloc(64 * 64 * 4);
-    if (tile_pixels == NULL)
-    {
-        free(clip_rects);
-        return 3;
-    }
-    colorSpace = CGColorSpaceCreateDeviceRGB();
-    if (colorSpace == NULL)
-    {
-        free(tile_pixels);
-        free(clip_rects);
-        return 4;
-    }
-    con = CGBitmapContextCreate(tile_pixels,
-            64, 64, 8, 64 * 4, colorSpace,
-            kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst);
-    CGColorSpaceRelease(colorSpace);
-    if (con == NULL)
-    {
-        free(tile_pixels);
-        free(clip_rects);
-        return 5;
-    }
     for (index = 0; index < numRects; index++)
     {
         x = rects[index].x;
@@ -315,7 +220,6 @@
     }
     CGContextSaveGState(bs_context);
     CGContextClipToRects(bs_context, clip_rects, numRects);
-    //CGContextBeginTransparencyLayer(bs_context, NULL);
     for (index = 0; index < numTiles; index++)
     {
         x = tiles[index].x;
@@ -332,41 +236,14 @@
             dst -= 64 * 4;
             src += width * 4;
         }
-
-        //con = CGBitmapContextCreate(tile_pixels,
-        //    64, 64, 8, 64 * 4, colorSpace,
-        //    kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst);
-
         // draw iamge to backing store
         cgImage = CGBitmapContextCreateImage(con);
         if (cgImage != NULL)
         {
-            //CGImageRef new_iamge = CGImageCreateCopy(cgImage);
-            //CGContextClearRect(bs_context, rect);
             CGContextDrawImage(bs_context, rect, cgImage);
-            CGContextFlush(bs_context);
-            //CGContextDrawImage(bs_context, rect, cgImage);
-            //CGContextClearRect(bs_context, rect);
-            int rc1 = CFGetRetainCount(cgImage);
-            NSLog(@"old rc %d", rc1);
-            //int rc2 = CFGetRetainCount(new_iamge);
-            //NSLog(@"new rc %d", rc2);
-            //CGImageRelease(cgImage);
-            //CGImageRelease(new_iamge);
             CGImageRelease(cgImage);
         }
-
-        // con = CGBitmapContextCreate(tile_pixels,
-        //     64, 64, 8, 64 * 4, colorSpace,
-        //     kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst);
-        // CGLayerRef lay1 = CGLayerCreateWithContext(con, CGSizeMake(64, 64), NULL);
-        // NSLog(@"drawTiles: lay1 %p", lay1);
-        // CGContextDrawLayerAtPoint(bs_context, rect.origin, lay1);
-        // CGLayerRelease(lay1);
-        //CGContextRelease(con);
-
     }
-    //CGContextEndTransparencyLayer(bs_context);
     CGContextRestoreGState(bs_context);
     for (index = 0; index < numRects; index++)
     {
@@ -374,14 +251,55 @@
         rect = [self fromClientAreaRect:clip_rects[index]];
         [self setNeedsDisplayInRect:rect];
     }
-
-    //CGContextFlush(bs_context);
-    //CGContextSynchronize(bs_context);
-
-    CGContextRelease(con);
-    free(tile_pixels);
-    free(clip_rects);
     return 0;
+}
+
+//*****************************************************************************
+-(int)drawTiles:(char*)pixels :(size_t)width :(size_t)height
+        :(struct rfx_rect*)rects :(int)numRects
+        :(struct rfx_tile*)tiles :(int)numTiles
+{
+    CGColorSpaceRef colorSpace;
+    CGContextRef con;
+    CGRect* clip_rects;
+    char* tile_pixels;
+    int rv;
+
+    //NSLog(@"drawTiles:");
+    rv = 1;
+    if (bs_context != NULL)
+    {
+        rv = 2;
+        clip_rects = (CGRect*)malloc(sizeof(CGRect) * numRects);
+        if (clip_rects != NULL)
+        {
+            rv = 3;
+            tile_pixels = (char*)malloc(64 * 64 * 4);
+            if (tile_pixels != NULL)
+            {
+                rv = 4;
+                colorSpace = CGColorSpaceCreateDeviceRGB();
+                if (colorSpace != NULL)
+                {
+                    rv = 5;
+                    con = CGBitmapContextCreate(tile_pixels,
+                            64, 64, 8, 64 * 4, colorSpace,
+                            kCGBitmapByteOrder32Little |
+                            kCGImageAlphaNoneSkipFirst);
+                    if (con != NULL)
+                    {
+                        rv = [self drawTileSet:pixels :width :height
+                                :rects :numRects :tiles :numTiles
+                                :clip_rects :tile_pixels :con];
+                    }
+                    CGColorSpaceRelease(colorSpace);
+                }
+                free(tile_pixels);
+            }
+            free(clip_rects);
+        }
+    }
+    return rv;
 }
 
 //*****************************************************************************
