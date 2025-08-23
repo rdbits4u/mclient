@@ -75,10 +75,13 @@
         CGContextRelease(bs_context);
     }
     CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-    bs_context = CGBitmapContextCreate(NULL,
-            NSWidth(contentRect), NSHeight(contentRect), 8, 0, colorSpace,
-            kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst);
-    CGColorSpaceRelease(colorSpace);
+    if (colorSpace != NULL)
+    {
+        bs_context = CGBitmapContextCreate(NULL,
+                NSWidth(contentRect), NSHeight(contentRect), 8, 0, colorSpace,
+                kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst);
+        CGColorSpaceRelease(colorSpace);
+    }
 }
 
 //*****************************************************************************
@@ -314,6 +317,7 @@
                         rv = [self drawTileSet:pixels :width :height
                                 :rects :numRects :tiles :numTiles
                                 :clip_rects :tile_pixels :con];
+                        CGContextRelease(con);
                     }
                     CGColorSpaceRelease(colorSpace);
                 }
