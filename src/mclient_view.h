@@ -7,6 +7,8 @@
     NSSize content_size;
     RDPSession* session;
     CGContextRef bs_context;
+    CGContextRef tile_context;
+    char* tile_pixels;
 }
 
 -(void)setSession:(RDPSession*)asession;

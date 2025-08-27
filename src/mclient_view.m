@@ -18,6 +18,8 @@
 {
     NSLog(@"MClientView dealloc:");
     [session release];
+    CGContextRelease(tile_context);
+    free(tile_pixels);
     [super dealloc];
 }
 
@@ -172,8 +174,8 @@
 -(void)scrollWheel:(NSEvent*)event
 {
     NSPoint location = [self getLocation:event];
-    float dx = [event deltaX] * -120.0;
-    float dy = [event deltaY] * 120;
+    float dx = [event deltaX] * -60.0;
+    float dy = [event deltaY] * 60;
     [session sendMouseWheel: dx :true :location.x :location.y];
     [session sendMouseWheel: dy :false :location.x :location.y];
 }
@@ -222,11 +224,10 @@
 //*****************************************************************************
 -(int)drawTileSet:(char*)pixels :(size_t)width :(size_t)height
         :(struct rfx_rect*)rects :(int)numRects
-        :(struct rfx_tile*)tiles :(int)numTiles
-        :(CGRect*)clip_rects :(char*)tile_pixels :(CGContextRef)con
+        :(struct rfx_tile*)tiles :(int)numTiles :(CGRect*)clip_rects
 {
     CGImageRef cgImage;
-    NSRect rect;
+    NSRect rect; // used as CGRect and NSRect
     char* src;
     char* dst;
     int x;
@@ -263,7 +264,7 @@
             src += width * 4;
         }
         // draw iamge to backing store
-        cgImage = CGBitmapContextCreateImage(con);
+        cgImage = CGBitmapContextCreateImage(tile_context);
         if (cgImage != NULL)
         {
             CGContextDrawImage(bs_context, rect, cgImage);
@@ -286,43 +287,48 @@
         :(struct rfx_tile*)tiles :(int)numTiles
 {
     CGColorSpaceRef colorSpace;
-    CGContextRef con;
     CGRect* clip_rects;
-    char* tile_pixels;
     int rv;
 
     //NSLog(@"drawTiles:");
     rv = 1;
-    if (bs_context != NULL)
+    if (tile_context == NULL)
     {
         rv = 2;
-        clip_rects = (CGRect*)malloc(sizeof(CGRect) * numRects);
-        if (clip_rects != NULL)
+        colorSpace = CGColorSpaceCreateDeviceRGB();
+        if (colorSpace != NULL)
         {
             rv = 3;
             tile_pixels = (char*)malloc(64 * 64 * 4);
             if (tile_pixels != NULL)
             {
                 rv = 4;
-                colorSpace = CGColorSpaceCreateDeviceRGB();
-                if (colorSpace != NULL)
+                tile_context = CGBitmapContextCreate(tile_pixels,
+                        64, 64, 8, 64 * 4, colorSpace,
+                        kCGBitmapByteOrder32Little |
+                        kCGImageAlphaNoneSkipFirst);
+                if (tile_context != NULL)
                 {
-                    rv = 5;
-                    con = CGBitmapContextCreate(tile_pixels,
-                            64, 64, 8, 64 * 4, colorSpace,
-                            kCGBitmapByteOrder32Little |
-                            kCGImageAlphaNoneSkipFirst);
-                    if (con != NULL)
-                    {
-                        rv = [self drawTileSet:pixels :width :height
-                                :rects :numRects :tiles :numTiles
-                                :clip_rects :tile_pixels :con];
-                        CGContextRelease(con);
-                    }
-                    CGColorSpaceRelease(colorSpace);
+                    NSLog(@"drawTiles: tile_context created ok");
+                    rv = 0;
                 }
-                free(tile_pixels);
             }
+            CGColorSpaceRelease(colorSpace);
+        }
+        if (rv != 0)
+        {
+            return rv;
+        }
+    }
+    if (bs_context != NULL)
+    {
+        rv = 5;
+        // malloc extra so we handle numRects == 0
+        clip_rects = (CGRect*)malloc(sizeof(CGRect) * numRects + 16);
+        if (clip_rects != NULL)
+        {
+            rv = [self drawTileSet:pixels :width :height
+                    :rects :numRects :tiles :numTiles :clip_rects];
             free(clip_rects);
         }
     }

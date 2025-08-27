@@ -431,8 +431,8 @@ can_send(int asck)
     {
         int width = rdpc->cgcc.core.desktopWidth;
         int height = rdpc->cgcc.core.desktopHeight;
-        awidth = (width + 63) & ~63;
-        aheight = (height + 63) & ~63;
+        int awidth = (width + 63) & ~63;
+        int aheight = (height + 63) & ~63;
         if (rfxdecoder == NULL)
         {
             ddata_len = awidth * aheight * 4;
@@ -864,7 +864,7 @@ can_send(int asck)
 }
 
 //*****************************************************************************
--(int)createWindow:(int)awidth :(int)aheight
+-(int)createWindow:(int)width :(int)height
 {
     NSLog(@"createWindow:");
     // create window
@@ -872,7 +872,7 @@ can_send(int asck)
     NSWindowStyleMask mask = NSTitledWindowMask | NSResizableWindowMask |
             NSMiniaturizableWindowMask | NSClosableWindowMask;
     [window
-        initWithContentRect:NSMakeRect(0, 0, awidth, aheight)
+        initWithContentRect:NSMakeRect(0, 0, width, height)
         styleMask:mask
         backing:NSBackingStoreBuffered
         defer:NO];
