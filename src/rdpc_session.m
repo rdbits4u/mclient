@@ -4,6 +4,7 @@
 #include <libsvc.h>
 #include <libcliprdr.h>
 #include <librdpsnd.h>
+#include <rlecodec_decode.h>
 #include <rfxcodec_decode.h>
 #import <Cocoa/Cocoa.h>
 #import "mclient_app_delegate.h"
@@ -71,11 +72,35 @@ cb_rdpc_send_to_server(struct rdpc_t* rdpc, void* data, uint32_t bytes)
 
 //*****************************************************************************
 // callback
+// int (*bitmap_update)(struct rdpc_t* rdpc,
+//                      struct bitmap_data_ex_t* bitmap_data);
+static int
+cb_rdpc_bitmap_update(struct rdpc_t* rdpc,
+                         struct bitmap_data_t* bitmap_data)
+{
+    //NSLog(@"cb_rdpc_bitmap_update:");
+    if (rdpc != NULL)
+    {
+        if (rdpc->user != NULL)
+        {
+            if (bitmap_data != NULL)
+            {
+                RDPSession* session = (RDPSession*)(rdpc->user);
+                [session bitmapUpdate:bitmap_data];
+                return LIBRDPC_ERROR_NONE;
+            }
+        }
+    }
+    return LIBRDPC_ERROR_PARAM;
+}
+
+//*****************************************************************************
+// callback
 // int (*set_surface_bits)(struct rdpc_t* rdpc,
-//                        struct bitmap_data_t* bitmap_data);
+//                         struct bitmap_data_ex_t* bitmap_data);
 static int
 cb_rdpc_set_surface_bits(struct rdpc_t* rdpc,
-                         struct bitmap_data_t* bitmap_data)
+                         struct bitmap_data_ex_t* bitmap_data)
 {
     //NSLog(@"cb_rdpc_set_surface_bits:");
     if (rdpc != NULL)
@@ -352,6 +377,7 @@ can_send(int asck)
         rdpc->user = self;
         rdpc->log_msg = cb_rdpc_log_msg;
         rdpc->send_to_server = cb_rdpc_send_to_server;
+        rdpc->bitmap_update = cb_rdpc_bitmap_update;
         rdpc->set_surface_bits = cb_rdpc_set_surface_bits;
         rdpc->frame_marker = cb_rdpc_frame_marker;
         rdpc->pointer_update = cb_rdpc_pointer_update;
@@ -424,10 +450,52 @@ can_send(int asck)
 }
 
 //*****************************************************************************
--(int)setSurfaceBits:(struct bitmap_data_t*)abitmap_data
+-(int)bitmapUpdate:(struct bitmap_data_t*)abitmap_data
+{
+    //NSLog(@"RDPSession bitmapUpdate:");
+    uint32_t size = abitmap_data->width * abitmap_data->height * 4;
+    if (size == 0)
+    {
+        return 0;
+    }
+    if (size > rle_ddata_len)
+    {
+        free(rle_ddata_ptr);
+        free(rle_tdata_ptr);
+        rle_ddata_ptr = (char*)malloc(size);
+        rle_tdata_ptr = (char*)malloc(size);
+        rle_ddata_len = size;
+    }
+    if (abitmap_data->bitmap_data != NULL)
+    {
+        int rv = bitmap_decompress(abitmap_data->bitmap_data,
+                    rle_ddata_ptr,
+                    abitmap_data->width, abitmap_data->height,
+                    abitmap_data->bitmap_data_len,
+                    abitmap_data->bits_per_pixel,
+                    rle_tdata_ptr);
+        //NSLog(@"RDPSession bitmapUpdate: rv %d", rv);
+        uint32_t dest_width = abitmap_data->dest_right -
+                abitmap_data->dest_left + 1;
+        uint32_t dest_height = abitmap_data->dest_bottom -
+                abitmap_data->dest_top + 1;
+        int draw_image_rv = [view drawImage
+                :abitmap_data->width :abitmap_data->height
+                :abitmap_data->dest_left :abitmap_data->dest_top
+                :dest_width :dest_height :rle_ddata_ptr];
+        if (draw_image_rv != 0)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+//*****************************************************************************
+-(int)setSurfaceBits:(struct bitmap_data_ex_t*)abitmap_data
 {
     //NSLog(@"RDPSession setSurfaceBits: codec_id %d", abitmap_data->codec_id);
-    if (abitmap_data->codec_id == 3)
+    if (abitmap_data->codec_id == CODEC_ID_REMOTEFX)
     {
         int width = rdpc->cgcc.core.desktopWidth;
         int height = rdpc->cgcc.core.desktopHeight;

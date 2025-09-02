@@ -336,6 +336,75 @@
 }
 
 //*****************************************************************************
+static void*
+flip_image(const char* pixels, unsigned int width, unsigned int height)
+{
+    int index;
+    const char* src;
+    char* dst;
+    char* fpixels = (char*)malloc(width * height * 4);
+    if (fpixels != NULL)
+    {
+        src = pixels;
+        dst = fpixels + (width * height * 4 - width * 4);
+        for (index = 0; index < height; index++)
+        {
+            memcpy(dst, src, width * 4);
+            src += width * 4;
+            dst -= width * 4;
+        }
+    }
+    return fpixels;
+}
+
+//*****************************************************************************
+-(int)drawImage:(unsigned int)src_width :(unsigned int)src_height
+        :(int)dst_left :(int)dst_top
+        :(unsigned int)dst_width :(unsigned int)dst_height
+        :(char*)pixels
+{
+    CGColorSpaceRef colorSpace;
+    CGContextRef context;
+    CGImageRef image;
+    NSRect rect; // used as CGRect and NSRect
+    char* fpixels;
+
+    //NSLog(@"drawImage:");
+    colorSpace = CGColorSpaceCreateDeviceRGB();
+    if (colorSpace != NULL)
+    {
+        fpixels = flip_image(pixels, src_width, src_height);
+        if (fpixels != NULL)
+        {
+            context = CGBitmapContextCreate(fpixels,
+                    src_width, src_height, 8, src_width * 4, colorSpace,
+                    kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst);
+            if (context != NULL)
+            {
+                image = CGBitmapContextCreateImage(context);
+                if (image != NULL)
+                {
+                    //NSLog(@"drawImage: dst_left %d dst_top %d "
+                    //        "dst_width %d dst_height %d",
+                    //        dst_left, dst_top, dst_width, dst_height);
+                    rect = NSMakeRect(dst_left, dst_top,
+                            dst_width, dst_height);
+                    CGContextDrawImage(bs_context, rect, image);
+                    CGImageRelease(image);
+                    rect = [self fromClientAreaRect:rect];
+                    [self setNeedsDisplayInRect:rect];
+                }
+                CGContextRelease(context);
+            }
+            free(fpixels);
+        }
+        CGColorSpaceRelease(colorSpace);
+    }
+    return 0;
+}
+
+
+//*****************************************************************************
 -(NSPoint)toClientArea:(NSPoint)pt
 {
     NSPoint lpt = pt;

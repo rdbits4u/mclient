@@ -42,9 +42,15 @@ struct send_t
     bool setupWithWantWrite;
     MClientView* view;
 
+    // set_surface_bits
     void* rfxdecoder;
     char* ddata_ptr;
     size_t ddata_len;
+
+    // bitmap_update
+    char* rle_ddata_ptr;
+    char* rle_tdata_ptr;
+    size_t rle_ddata_len;
 
 }
 
@@ -53,7 +59,8 @@ struct send_t
         :(RDPConnect*)aconnectInfo;
 
 -(int)sendToServer:(void*)adata :(uint32_t)abytes;
--(int)setSurfaceBits:(struct bitmap_data_t*)abitmap_data;
+-(int)bitmapUpdate:(struct bitmap_data_t*)abitmap_data;
+-(int)setSurfaceBits:(struct bitmap_data_ex_t*)abitmap_data;
 -(int)frameMarker:(uint16_t)frame_action :(uint32_t)frame_id;
 -(int)pointerUpdate:(struct pointer_t*)apointer;
 -(int)pointerCached:(uint16_t)cache_index;

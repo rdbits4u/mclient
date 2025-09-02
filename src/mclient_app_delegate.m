@@ -213,10 +213,6 @@ last_strstr(const char* haystack, const char* needle)
     settings->dpix = 96;
     settings->dpiy = 96;
     settings->keyboard_layout = 0x0409;
-    settings->rfx = 1;
-    settings->jpg = 0;
-    settings->use_frame_ack = 1;
-    settings->frames_in_flight = 5;
 
     const char* env1 = getenv("USER");
     if (env1 != NULL)
@@ -234,7 +230,7 @@ last_strstr(const char* haystack, const char* needle)
     int index;
     for (index = 1; index < argc; index++)
     {
-        NSLog(@"processArgs arg index %d arg %s", index, argv[index]);
+        NSLog(@"processArgs: arg index %d arg %s", index, argv[index]);
         if (strcmp(argv[index], "-h") == 0)
         {
             // show command line
@@ -244,7 +240,7 @@ last_strstr(const char* haystack, const char* needle)
             index++;
             if (index >= argc)
             {
-                NSLog(@"processArgs not enough args");
+                NSLog(@"processArgs: not enough args");
                 return 1;
             }
             snprintf(settings->username, sizeof(settings->username),
@@ -256,7 +252,7 @@ last_strstr(const char* haystack, const char* needle)
             index++;
             if (index >= argc)
             {
-                NSLog(@"processArgs not enough args");
+                NSLog(@"processArgs: not enough args");
                 return 1;
             }
             snprintf(settings->domain, sizeof(settings->domain),
@@ -268,7 +264,7 @@ last_strstr(const char* haystack, const char* needle)
             index++;
             if (index >= argc)
             {
-                NSLog(@"processArgs not enough args");
+                NSLog(@"processArgs: not enough args");
                 return 1;
             }
             snprintf(settings->altshell, sizeof(settings->altshell),
@@ -280,7 +276,7 @@ last_strstr(const char* haystack, const char* needle)
             index++;
             if (index >= argc)
             {
-                NSLog(@"processArgs not enough args");
+                NSLog(@"processArgs: not enough args");
                 return 1;
             }
             snprintf(settings->workingdir, sizeof(settings->workingdir),
@@ -292,7 +288,7 @@ last_strstr(const char* haystack, const char* needle)
             index++;
             if (index >= argc)
             {
-                NSLog(@"processArgs not enough args");
+                NSLog(@"processArgs: not enough args");
                 return 1;
             }
             snprintf(settings->password, sizeof(settings->password),
@@ -304,7 +300,7 @@ last_strstr(const char* haystack, const char* needle)
             index++;
             if (index >= argc)
             {
-                NSLog(@"processArgs not enough args");
+                NSLog(@"processArgs: not enough args");
                 return 1;
             }
             snprintf(settings->clientname, sizeof(settings->clientname),
@@ -316,7 +312,7 @@ last_strstr(const char* haystack, const char* needle)
             index++;
             if (index >= argc)
             {
-                NSLog(@"processArgs not enough args");
+                NSLog(@"processArgs: not enough args");
                 return 1;
             }
             char width[16];
@@ -324,16 +320,33 @@ last_strstr(const char* haystack, const char* needle)
             const char* xpos = strstr(argv[index], "x");
             if (xpos == NULL)
             {
-                NSLog(@"processArgs no x");
+                NSLog(@"processArgs: no x");
                 return 1;
             }
             long width_len = xpos - argv[index] + 1;
             width_len = width_len > sizeof(width) ? sizeof(width) : width_len;
             snprintf(width, width_len, "%s", argv[index]);
             snprintf(height, sizeof(height), "%s", xpos + 1);
-            NSLog(@"processArgs width %s height %s", width,  height);
+            NSLog(@"processArgs: width %s height %s", width,  height);
             settings->width = atoi(width);
             settings->height = atoi(height);
+        }
+        else if (strcmp(argv[index], "--rfx") == 0)
+        {
+            NSLog(@"processArgs: requesting rfx session");
+            settings->rfx = 1;
+            settings->jpg = 0;
+            settings->use_frame_ack = 1;
+            settings->frames_in_flight = 5;
+        }
+        else if ((strcmp(argv[index], "--jpeg") == 0) ||
+                (strcmp(argv[index], "--jpg") == 0))
+        {
+            NSLog(@"processArgs: requesting jpeg session");
+            settings->jpg = 1;
+            settings->rfx = 0;
+            settings->use_frame_ack = 1;
+            settings->frames_in_flight = 5;
         }
         else
         {
