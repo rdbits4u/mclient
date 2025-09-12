@@ -75,6 +75,7 @@ struct send_t
 -(void)sendMouseDownEvent:(uint16_t)but :(uint16_t)x :(uint16_t)y;
 -(void)sendMouseUpEvent:(uint16_t)but :(uint16_t)x :(uint16_t)y;
 -(void)sendMouseWheel:(int)delta :(bool)isHorizontal :(uint16_t)x :(uint16_t)y;
+-(bool)sendKeyboardScancode:(uint16_t)flags :(uint16_t)code;
 
 -(void)setApp:(NSApplication*)aapp;
 -(void)setAppName:(NSString*)aappName;

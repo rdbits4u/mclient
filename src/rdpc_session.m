@@ -475,6 +475,7 @@ can_send(int asck)
                     abitmap_data->bits_per_pixel,
                     rle_tdata_ptr);
         //NSLog(@"RDPSession bitmapUpdate: rv %d", rv);
+        // inclusive right and bottom
         uint32_t dest_width = abitmap_data->dest_right -
                 abitmap_data->dest_left + 1;
         uint32_t dest_height = abitmap_data->dest_bottom -
@@ -482,7 +483,7 @@ can_send(int asck)
         int draw_image_rv = [view drawImage
                 :abitmap_data->width :abitmap_data->height
                 :abitmap_data->dest_left :abitmap_data->dest_top
-                :dest_width :dest_height :rle_ddata_ptr];
+                :dest_width :dest_height :rle_ddata_ptr :NULL :0];
         if (draw_image_rv != 0)
         {
             return 1;
@@ -538,11 +539,19 @@ can_send(int asck)
             {
                 return 3;
             }
-            int draw_tiles_rv = [view drawTiles:ddata_ptr :awidth :aheight
-                    :rects :num_rects :tiles :num_tiles];
-            if (draw_tiles_rv != 0)
+            // exclusive right and bottom
+            uint32_t dest_width = abitmap_data->dest_right -
+                    abitmap_data->dest_left;
+            uint32_t dest_height = abitmap_data->dest_bottom -
+                    abitmap_data->dest_top;
+            int draw_image_rv = [view drawImage
+                    :abitmap_data->width :abitmap_data->height
+                    :abitmap_data->dest_left :abitmap_data->dest_top
+                    :dest_width :dest_height :ddata_ptr :rects :num_rects];
+            if (draw_image_rv != 0)
             {
-                NSLog(@"setSurfaceBits: draw_tiles_rv %d", draw_tiles_rv);
+                NSLog(@"setSurfaceBits: draw_image_rv %d", draw_image_rv);
+                return 5;
             }
         }
     }
@@ -830,6 +839,16 @@ can_send(int asck)
         }
         delta -= ldelta;
     }
+}
+
+//*****************************************************************************
+-(bool)sendKeyboardScancode:(uint16_t)flags :(uint16_t)code
+{
+    if (rdpc_send_keyboard_scancode(rdpc, flags, code) != 0)
+    {
+        return false;
+    }
+    return true;
 }
 
 //*****************************************************************************

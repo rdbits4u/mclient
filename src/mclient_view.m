@@ -11,7 +11,111 @@
 #import "rdpc_session.h"
 #import "mclient_log.h"
 
+//*****************************************************************************
+static struct rdp_key_code_t
+setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
+{
+    struct rdp_key_code_t kc;
+    kc.code = code;
+    kc.flags[0] = flags0;
+    kc.flags[1] = flags1;
+    kc.is_down = false;
+    return kc;
+}
+
 @implementation MClientView
+
+//*****************************************************************************
+-(MClientView*)initWithFrame:(CGRect)theFrame
+{
+    NSLog(@"MClientView initWithFrame:");
+    self = [super initWithFrame:theFrame];
+    if (self)
+    {
+        keymap[0]   = setkc(30,  0x0000, 0x8000); // A
+        keymap[1]   = setkc(31,  0x0000, 0x8000); // S
+        keymap[2]   = setkc(32,  0x0000, 0x8000); // D
+        keymap[3]   = setkc(33,  0x0000, 0x8000); // F
+        keymap[4]   = setkc(35,  0x0000, 0x8000); // H
+        keymap[5]   = setkc(34,  0x0000, 0x8000); // G
+        keymap[6]   = setkc(44,  0x0000, 0x8000); // Z
+        keymap[7]   = setkc(45,  0x0000, 0x8000); // X
+        keymap[8]   = setkc(46,  0x0000, 0x8000); // C
+        keymap[9]   = setkc(47,  0x0000, 0x8000); // V
+        // 10
+        keymap[11]  = setkc(48,  0x0000, 0x8000); // B
+        keymap[12]  = setkc(16,  0x0000, 0x8000); // Q
+        keymap[13]  = setkc(17,  0x0000, 0x8000); // W
+        keymap[14]  = setkc(18,  0x0000, 0x8000); // E
+        keymap[15]  = setkc(19,  0x0000, 0x8000); // R
+        keymap[16]  = setkc(21,  0x0000, 0x8000); // Y
+        keymap[17]  = setkc(20,  0x0000, 0x8000); // T
+        keymap[18]  = setkc(2,   0x0000, 0x8000); // 1
+        keymap[19]  = setkc(3,   0x0000, 0x8000); // 2
+        keymap[20]  = setkc(4,   0x0000, 0x8000); // 3
+        keymap[21]  = setkc(5,   0x0000, 0x8000); // 4
+        keymap[22]  = setkc(7,   0x0000, 0x8000); // 6
+        keymap[23]  = setkc(6,   0x0000, 0x8000); // 5
+        keymap[24]  = setkc(13,  0x0000, 0x8000); // =
+        keymap[25]  = setkc(10,  0x0000, 0x8000); // 9
+        keymap[26]  = setkc(8,   0x0000, 0x8000); // 7
+        keymap[27]  = setkc(12,  0x0000, 0x8000); // -
+        keymap[28]  = setkc(9,   0x0000, 0x8000); // 8
+        keymap[29]  = setkc(11,  0x0000, 0x8000); // 0
+        keymap[30]  = setkc(27,  0x0000, 0x8000); // ]
+        keymap[31]  = setkc(24,  0x0000, 0x8000); // O
+        keymap[32]  = setkc(22,  0x0000, 0x8000); // U
+        keymap[33]  = setkc(26,  0x0000, 0x8000); // [
+        keymap[34]  = setkc(23,  0x0000, 0x8000); // I
+        keymap[35]  = setkc(25,  0x0000, 0x8000); // P
+        keymap[36]  = setkc(28,  0x0000, 0x8000); // enter
+        keymap[37]  = setkc(38,  0x0000, 0x8000); // L
+        keymap[38]  = setkc(36,  0x0000, 0x8000); // J
+        keymap[39]  = setkc(40,  0x0000, 0x8000); // '
+        keymap[40]  = setkc(37,  0x0000, 0x8000); // K
+        keymap[41]  = setkc(39,  0x0000, 0x8000); // ;
+        keymap[42]  = setkc(43,  0x0000, 0x8000); // backslash
+        keymap[43]  = setkc(51,  0x0000, 0x8000); // ,
+        keymap[44]  = setkc(53,  0x0000, 0x8000); // /
+        keymap[45]  = setkc(49,  0x0000, 0x8000); // N
+        keymap[46]  = setkc(50,  0x0000, 0x8000); // M
+        keymap[47]  = setkc(52,  0x0000, 0x8000); // .
+        keymap[48]  = setkc(15,  0x0000, 0x8000); // tab
+        keymap[49]  = setkc(57,  0x0000, 0x8000); // space
+        keymap[50]  = setkc(41,  0x0000, 0x8000); // `
+        keymap[51]  = setkc(14,  0x0000, 0x8000); // backspace
+        // 52
+        keymap[53]  = setkc(1,   0x0000, 0x8000); // esc
+        // 54
+        //keymap[55]  = setkc(36,  0x0000, 0x8000); // left win
+
+
+        keymap[96]  = setkc(63,  0x0000, 0x8000); // F5
+        keymap[97]  = setkc(64,  0x0000, 0x8000); // F6
+        keymap[98]  = setkc(65,  0x0000, 0x8000); // F7
+        keymap[99]  = setkc(61,  0x0000, 0x8000); // F3
+        keymap[100] = setkc(66,  0x0000, 0x8000); // F8
+        keymap[101] = setkc(67,  0x0000, 0x8000); // F9
+        // 102
+        keymap[103] = setkc(87,  0x0000, 0x8000); // F11
+
+        keymap[109] = setkc(68,  0x0000, 0x8000); // F10
+        // 110
+        keymap[111] = setkc(88,  0x0000, 0x8000); // F12
+
+        keymap[118] = setkc(62,  0x0000, 0x8000); // F4
+        // 119
+        keymap[120] = setkc(60,  0x0000, 0x8000); // F2
+        // 121
+        keymap[122] = setkc(59,  0x0000, 0x8000); // F1
+        keymap[123] = setkc(75,  0x0100, 0x8100); // left arrow
+        keymap[124] = setkc(77,  0x0100, 0x8100); // right arrow
+        keymap[125] = setkc(80,  0x0100, 0x8100); // down arrow
+        keymap[126] = setkc(72,  0x0100, 0x8100); // up arrow
+
+    }
+    return self;
+}
 
 //*****************************************************************************
 -(void)dealloc
@@ -27,7 +131,7 @@
 -(BOOL)isFlipped
 {
     //NSLog(@"isFlipped:");
-    return YES;
+    return NO;
 }
 
 //*****************************************************************************
@@ -92,9 +196,9 @@
     NSPoint location;
     // convert the click location into the view coords
     location = [self convertPoint:[event locationInWindow] fromView:nil];
-    location = [self toClientArea:location];
     location.x = MAX(location.x + 0.5, 0);
-    location.y = MAX(location.y + 0.5, 0);
+    location.y = MAX((content_size.height - location.y) + 0.5, 0);
+    NSLog(@"getLocation: x %f y %f", location.x, location.y);
     return location;
 }
 
@@ -183,13 +287,39 @@
 //*****************************************************************************
 -(void)keyDown:(NSEvent*)event
 {
-    NSLog(@"keyDown: %@", [NSThread currentThread]);
+    uint16_t key_code = [event keyCode];
+    NSLog(@"keyDown: key_code %d", key_code);
+    if (key_code < 256)
+    {
+        struct rdp_key_code_t* kc = keymap + key_code;
+        if ([session sendKeyboardScancode:kc->flags[0] :kc->code])
+        {
+            kc->is_down = true;
+        }
+    }
 }
 
 //*****************************************************************************
 -(void)keyUp:(NSEvent*)event
 {
-    NSLog(@"keyUp: %@", [NSThread currentThread]);
+    uint16_t key_code = [event keyCode];
+    NSLog(@"keyUp: key_code %d", key_code);
+    if (key_code < 256)
+    {
+        struct rdp_key_code_t* kc = keymap + key_code;
+        if ([session sendKeyboardScancode:kc->flags[1] :kc->code])
+        {
+            kc->is_down = false;
+        }
+    }
+}
+
+//*****************************************************************************
+-(NSRect)flipRect:(NSRect)arect
+{
+    arect.origin.y = (content_size.height - arect.origin.y) -
+            arect.size.height;
+    return arect;
 }
 
 //*****************************************************************************
@@ -206,13 +336,13 @@
             if (cgImage != NULL)
             {
                 CGContextSaveGState(cgContext);
+                CGContextSetInterpolationQuality(cgContext,
+                        kCGInterpolationNone);
                 CGRect rect = dirtyRect;
                 CGContextClipToRect(cgContext, rect);
-                rect.origin = origin;
+                rect.origin = NSMakePoint(0, 0);
                 rect.size = content_size;
                 CGContextDrawImage(cgContext, rect, cgImage);
-                //int rc1 = CFGetRetainCount(cgImage);
-                //NSLog(@"drawRect rc1 %d", rc1);
                 CGContextRestoreGState(cgContext);
                 CGImageRelease(cgImage);
             }
@@ -222,222 +352,65 @@
 }
 
 //*****************************************************************************
--(int)drawTileSet:(char*)pixels :(size_t)width :(size_t)height
-        :(struct rfx_rect*)rects :(int)numRects
-        :(struct rfx_tile*)tiles :(int)numTiles :(CGRect*)clip_rects
-{
-    CGImageRef cgImage;
-    NSRect rect; // used as CGRect and NSRect
-    char* src;
-    char* dst;
-    int x;
-    int y;
-    int cx;
-    int cy;
-    int index;
-    int jndex;
-
-    for (index = 0; index < numRects; index++)
-    {
-        x = rects[index].x;
-        y = rects[index].y;
-        cx = rects[index].cx;
-        cy = rects[index].cy;
-        clip_rects[index] = CGRectMake(x, y, cx, cy);
-    }
-    CGContextSaveGState(bs_context);
-    CGContextClipToRects(bs_context, clip_rects, numRects);
-    for (index = 0; index < numTiles; index++)
-    {
-        x = tiles[index].x;
-        y = tiles[index].y;
-        cx = tiles[index].cx;
-        cy = tiles[index].cy;
-        rect = NSMakeRect(x, y, cx, cy);
-        // flip tile image
-        src = pixels + width * 4 * y + x * 4;
-        dst = tile_pixels + (64 * 64 * 4 - 64 * 4);
-        for (jndex = 0; jndex < 64; jndex++)
-        {
-            memcpy(dst, src, 64 * 4);
-            dst -= 64 * 4;
-            src += width * 4;
-        }
-        // draw iamge to backing store
-        cgImage = CGBitmapContextCreateImage(tile_context);
-        if (cgImage != NULL)
-        {
-            CGContextDrawImage(bs_context, rect, cgImage);
-            CGImageRelease(cgImage);
-        }
-    }
-    CGContextRestoreGState(bs_context);
-    for (index = 0; index < numRects; index++)
-    {
-        // invalidate to cause draw
-        rect = [self fromClientAreaRect:clip_rects[index]];
-        [self setNeedsDisplayInRect:rect];
-    }
-    return 0;
-}
-
-//*****************************************************************************
--(int)drawTiles:(char*)pixels :(size_t)width :(size_t)height
-        :(struct rfx_rect*)rects :(int)numRects
-        :(struct rfx_tile*)tiles :(int)numTiles
-{
-    CGColorSpaceRef colorSpace;
-    CGRect* clip_rects;
-    int rv;
-
-    //NSLog(@"drawTiles:");
-    rv = 1;
-    if (tile_context == NULL)
-    {
-        rv = 2;
-        colorSpace = CGColorSpaceCreateDeviceRGB();
-        if (colorSpace != NULL)
-        {
-            rv = 3;
-            tile_pixels = (char*)malloc(64 * 64 * 4);
-            if (tile_pixels != NULL)
-            {
-                rv = 4;
-                tile_context = CGBitmapContextCreate(tile_pixels,
-                        64, 64, 8, 64 * 4, colorSpace,
-                        kCGBitmapByteOrder32Little |
-                        kCGImageAlphaNoneSkipFirst);
-                if (tile_context != NULL)
-                {
-                    NSLog(@"drawTiles: tile_context created ok");
-                    rv = 0;
-                }
-            }
-            CGColorSpaceRelease(colorSpace);
-        }
-        if (rv != 0)
-        {
-            return rv;
-        }
-    }
-    if (bs_context != NULL)
-    {
-        rv = 5;
-        // malloc extra so we handle numRects == 0
-        clip_rects = (CGRect*)malloc(sizeof(CGRect) * numRects + 16);
-        if (clip_rects != NULL)
-        {
-            rv = [self drawTileSet:pixels :width :height
-                    :rects :numRects :tiles :numTiles :clip_rects];
-            free(clip_rects);
-        }
-    }
-    return rv;
-}
-
-//*****************************************************************************
-static void*
-flip_image(const char* pixels, unsigned int width, unsigned int height)
-{
-    int index;
-    const char* src;
-    char* dst;
-    char* fpixels = (char*)malloc(width * height * 4);
-    if (fpixels != NULL)
-    {
-        src = pixels;
-        dst = fpixels + (width * height * 4 - width * 4);
-        for (index = 0; index < height; index++)
-        {
-            memcpy(dst, src, width * 4);
-            src += width * 4;
-            dst -= width * 4;
-        }
-    }
-    return fpixels;
-}
-
-//*****************************************************************************
 -(int)drawImage:(unsigned int)src_width :(unsigned int)src_height
         :(int)dst_left :(int)dst_top
         :(unsigned int)dst_width :(unsigned int)dst_height
-        :(char*)pixels
+        :(char*)pixels :(struct rfx_rect*)clips :(unsigned int)num_clips
 {
     CGColorSpaceRef colorSpace;
     CGContextRef context;
     CGImageRef image;
-    NSRect rect; // used as CGRect and NSRect
-    char* fpixels;
+    NSRect rect;
+    NSRect clip;
+    NSRect* ns_clips;
+    int index;
 
     //NSLog(@"drawImage:");
     colorSpace = CGColorSpaceCreateDeviceRGB();
     if (colorSpace != NULL)
     {
-        fpixels = flip_image(pixels, src_width, src_height);
-        if (fpixels != NULL)
+        CGContextSaveGState(bs_context);
+        clip = NSMakeRect(dst_left, dst_top, dst_width, dst_height);
+        clip = [self flipRect:clip];
+        CGContextClipToRect(bs_context, clip);
+        if (num_clips > 0)
         {
-            context = CGBitmapContextCreate(fpixels,
-                    src_width, src_height, 8, src_width * 4, colorSpace,
-                    kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst);
-            if (context != NULL)
+            // convert clips
+            ns_clips = (NSRect*)malloc(sizeof(NSRect) * num_clips);
+            if (ns_clips != NULL)
             {
-                image = CGBitmapContextCreateImage(context);
-                if (image != NULL)
+                for (index = 0; index < num_clips; index++)
                 {
-                    //NSLog(@"drawImage: dst_left %d dst_top %d "
-                    //        "dst_width %d dst_height %d",
-                    //        dst_left, dst_top, dst_width, dst_height);
-                    rect = NSMakeRect(dst_left, dst_top,
-                            dst_width, dst_height);
-                    CGContextDrawImage(bs_context, rect, image);
-                    CGImageRelease(image);
-                    rect = [self fromClientAreaRect:rect];
-                    [self setNeedsDisplayInRect:rect];
+                    rect = NSMakeRect(clips[index].x, clips[index].y,
+                            clips[index].cx, clips[index].cy);
+                    ns_clips[index] = [self flipRect:rect];
                 }
-                CGContextRelease(context);
+                CGContextClipToRects(bs_context, ns_clips, num_clips);
+                free(ns_clips);
             }
-            free(fpixels);
         }
+        context = CGBitmapContextCreate(pixels,
+                src_width, src_height, 8, src_width * 4, colorSpace,
+                kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst);
+        if (context != NULL)
+        {
+            image = CGBitmapContextCreateImage(context);
+            if (image != NULL)
+            {
+                // must be src_width and src_height or else
+                // CGContextDrawImage will stretch
+                rect = NSMakeRect(dst_left, dst_top, src_width, src_height);
+                rect = [self flipRect:rect];
+                CGContextDrawImage(bs_context, rect, image);
+                CGImageRelease(image);
+            }
+            CGContextRelease(context);
+        }
+        CGContextRestoreGState(bs_context);
         CGColorSpaceRelease(colorSpace);
+        [self setNeedsDisplayInRect:clip];
     }
     return 0;
-}
-
-
-//*****************************************************************************
--(NSPoint)toClientArea:(NSPoint)pt
-{
-    NSPoint lpt = pt;
-    lpt.x -= origin.x;
-    lpt.y -= origin.y;
-    return lpt;
-}
-
-//*****************************************************************************
--(NSRect)toClientAreaRect:(NSRect)rect
-{
-    NSRect lrect = rect;
-    lrect.origin.x -= origin.x;
-    lrect.origin.y -= origin.y;
-    return lrect;
-}
-
-//*****************************************************************************
--(NSPoint)fromClientArea:(NSPoint)pt
-{
-    NSPoint lpt = pt;
-    lpt.x += origin.x;
-    lpt.y += origin.y;
-    return lpt;
-}
-
-//*****************************************************************************
--(NSRect)fromClientAreaRect:(NSRect)rect
-{
-    NSRect lrect = rect;
-    lrect.origin.x += origin.x;
-    lrect.origin.y += origin.y;
-    return lrect;
 }
 
 //*****************************************************************************
