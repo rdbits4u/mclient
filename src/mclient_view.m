@@ -86,9 +86,38 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
         keymap[51]  = setkc(14,  0x0000, 0x8000); // backspace
         // 52
         keymap[53]  = setkc(1,   0x0000, 0x8000); // esc
-        // 54
-        //keymap[55]  = setkc(36,  0x0000, 0x8000); // left win
+        keymap[54]  = setkc(92,  0x0100, 0x8100); // right win
+        keymap[55]  = setkc(91,  0x0100, 0x8100); // left win
+        keymap[56]  = setkc(42,  0x0000, 0xC000); // left shift     kVK_Shift
+        // 57
+        keymap[58]  = setkc(56,  0x0000, 0xC000); // left alt
+        keymap[59]  = setkc(29,  0x0000, 0xC000); // left ctrl
+        keymap[60]  = setkc(54,  0x0000, 0xC000); // right shift
+        keymap[61]  = setkc(56,  0x0100, 0xC100); // right alt
+        keymap[62]  = setkc(29,  0x0100, 0xC100); // right ctrl
 
+        keymap[65]  = setkc(83,  0x0100, 0x8100); // NP .
+
+        keymap[67]  = setkc(55,  0x0000, 0x8000); // NP *
+
+        keymap[69]  = setkc(78,  0x0000, 0x8000); // NP +
+
+        keymap[75]  = setkc(53,  0x0100, 0x8100); // NP /
+        keymap[76]  = setkc(28,  0x0100, 0xC100); // NP enter
+
+        keymap[78]  = setkc(74,  0x0000, 0x8000); // NP -
+
+        keymap[82]  = setkc(82,  0x0000, 0x8000); // NP 0
+        keymap[83]  = setkc(79,  0x0000, 0x8000); // NP 1
+        keymap[84]  = setkc(80,  0x0000, 0x8000); // NP 2
+        keymap[85]  = setkc(81,  0x0000, 0x8000); // NP 3
+        keymap[86]  = setkc(75,  0x0000, 0x8000); // NP 4
+        keymap[87]  = setkc(76,  0x0000, 0x8000); // NP 5
+        keymap[88]  = setkc(77,  0x0000, 0x8000); // NP 6
+        keymap[89]  = setkc(71,  0x0000, 0x8000); // NP 7
+        // 90
+        keymap[91]  = setkc(72,  0x0000, 0x8000); // NP 8
+        keymap[92]  = setkc(73,  0x0000, 0x8000); // NP 9
 
         keymap[96]  = setkc(63,  0x0000, 0x8000); // F5
         keymap[97]  = setkc(64,  0x0000, 0x8000); // F6
@@ -99,14 +128,21 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
         // 102
         keymap[103] = setkc(87,  0x0000, 0x8000); // F11
 
+        //keymap[105]  = setkc(?,  0x0100, 0x8100); // print screen
+
         keymap[109] = setkc(68,  0x0000, 0x8000); // F10
         // 110
         keymap[111] = setkc(88,  0x0000, 0x8000); // F12
 
+        keymap[114] = setkc(82,  0x0100, 0x8100); // insert
+        keymap[115] = setkc(71,  0x0100, 0x8100); // home
+        keymap[116] = setkc(73,  0x0100, 0x8100); // page up
+        keymap[117] = setkc(83,  0x0100, 0x8100); // delete
         keymap[118] = setkc(62,  0x0000, 0x8000); // F4
+        keymap[119] = setkc(79,  0x0100, 0x8100); // end
         // 119
         keymap[120] = setkc(60,  0x0000, 0x8000); // F2
-        // 121
+        keymap[121] = setkc(81,  0x0100, 0x8100); // page down
         keymap[122] = setkc(59,  0x0000, 0x8000); // F1
         keymap[123] = setkc(75,  0x0100, 0x8100); // left arrow
         keymap[124] = setkc(77,  0x0100, 0x8100); // right arrow
@@ -285,33 +321,51 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
 }
 
 //*****************************************************************************
+-(void)processKeyCode:(uint32_t)key_code :(uint32_t)down
+{
+    struct rdp_key_code_t* kc = keymap + (key_code & 0xFF);
+    if ([session sendKeyboardScancode:kc->flags[!down] :kc->code] == 0)
+    {
+        kc->is_down = !!down;
+    }
+}
+
+//*****************************************************************************
 -(void)keyDown:(NSEvent*)event
 {
     uint16_t key_code = [event keyCode];
-    NSLog(@"keyDown: key_code %d", key_code);
-    if (key_code < 256)
-    {
-        struct rdp_key_code_t* kc = keymap + key_code;
-        if ([session sendKeyboardScancode:kc->flags[0] :kc->code])
-        {
-            kc->is_down = true;
-        }
-    }
+    //NSLog(@"keyDown: key_code %d", key_code);
+    [self processKeyCode:key_code :1];
 }
 
 //*****************************************************************************
 -(void)keyUp:(NSEvent*)event
 {
     uint16_t key_code = [event keyCode];
-    NSLog(@"keyUp: key_code %d", key_code);
-    if (key_code < 256)
+    //NSLog(@"keyUp: key_code %d", key_code);
+    [self processKeyCode:key_code :0];
+}
+
+//*****************************************************************************
+-(void)checkModifier:(uint32_t)mod_flags :(uint16_t)key_code :(uint32_t)flag
+{
+    uint32_t down;
+    if ((down = mod_flags & flag) != (last_mod_flags & flag))
     {
-        struct rdp_key_code_t* kc = keymap + key_code;
-        if ([session sendKeyboardScancode:kc->flags[1] :kc->code])
-        {
-            kc->is_down = false;
-        }
+        [self processKeyCode:key_code :down];
     }
+}
+
+//*****************************************************************************
+-(void)flagsChanged:(NSEvent*)event
+{
+    uint16_t key_code = [event keyCode];
+    uint32_t mod_flags = [event modifierFlags];
+    [self checkModifier:mod_flags :key_code :NSEventModifierFlagControl];
+    [self checkModifier:mod_flags :key_code :NSEventModifierFlagShift];
+    [self checkModifier:mod_flags :key_code :NSEventModifierFlagOption];
+    [self checkModifier:mod_flags :key_code :NSEventModifierFlagCommand];
+    last_mod_flags = mod_flags;
 }
 
 //*****************************************************************************

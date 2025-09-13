@@ -17,6 +17,7 @@ struct rdp_key_code_t
     CGContextRef tile_context;
     char* tile_pixels;
     struct rdp_key_code_t keymap[256];
+    uint32_t last_mod_flags;
 }
 
 -(void)setSession:(RDPSession*)asession;

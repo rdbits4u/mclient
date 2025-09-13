@@ -842,13 +842,13 @@ can_send(int asck)
 }
 
 //*****************************************************************************
--(bool)sendKeyboardScancode:(uint16_t)flags :(uint16_t)code
+-(int)sendKeyboardScancode:(uint16_t)flags :(uint16_t)code
 {
     if (rdpc_send_keyboard_scancode(rdpc, flags, code) != 0)
     {
-        return false;
+        return 1;
     }
-    return true;
+    return 0;
 }
 
 //*****************************************************************************
