@@ -18,15 +18,15 @@ struct rdp_key_code_t
     char* tile_pixels;
     struct rdp_key_code_t keymap[256];
     uint32_t last_mod_flags;
+    bool need_keyboard_sync;
 }
 
--(void)setSession:(RDPSession*)asession;
--(int)drawTiles:(char*)pixels :(size_t)width :(size_t)height
-        :(struct rfx_rect*)rects :(int)numRects
-        :(struct rfx_tile*)tiles :(int)numTiles;
 -(int)drawImage:(unsigned int)src_width :(unsigned int)src_height
         :(int)dst_left :(int)dst_top
         :(unsigned int)dst_width :(unsigned int)dst_height
         :(char*)pixels :(struct rfx_rect*)clips :(unsigned int)num_clips;
+-(void)setSession:(RDPSession*)asession;
+-(void)focusIn;
+-(void)focusOut;
 
 @end

@@ -9,6 +9,7 @@
 #import <Cocoa/Cocoa.h>
 #import "mclient_app_delegate.h"
 #import "mclient_view.h"
+#import "mclient_window.h"
 #import "rdpc_session.h"
 #import "mclient_log.h"
 
@@ -852,6 +853,17 @@ can_send(int asck)
 }
 
 //*****************************************************************************
+-(int)sendKeyboardSync:(uint32_t)toggleFlags
+{
+    NSLog(@"sendKeyboardSync:");
+    if (rdpc_send_keyboard_sync(rdpc, toggleFlags) != 0)
+    {
+        return 1;
+    }
+    return 0;
+}
+
+//*****************************************************************************
 -(void)setApp:(NSApplication*)aapp
 {
     app = aapp;
@@ -955,7 +967,7 @@ can_send(int asck)
 {
     NSLog(@"createWindow:");
     // create window
-    NSWindow* window = [NSWindow alloc];
+    MClientWindow* window = [MClientWindow alloc];
     NSWindowStyleMask mask = NSTitledWindowMask | NSResizableWindowMask |
             NSMiniaturizableWindowMask | NSClosableWindowMask;
     [window
@@ -971,6 +983,7 @@ can_send(int asck)
     view = [MClientView alloc];
     [view initWithFrame:NSMakeRect(0, 0, 1, 1)];
     [view setSession:self];
+    // add view
     [[window contentView] addSubview:view];
 }
 

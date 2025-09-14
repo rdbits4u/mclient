@@ -8,6 +8,7 @@
 #import <Cocoa/Cocoa.h>
 #import "mclient_app_delegate.h"
 #import "mclient_view.h"
+#import "mclient_window.h"
 #import "rdpc_session.h"
 #import "mclient_log.h"
 
@@ -32,11 +33,11 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
     self = [super initWithFrame:theFrame];
     if (self)
     {
-        keymap[0]   = setkc(30,  0x0000, 0x8000); // A
-        keymap[1]   = setkc(31,  0x0000, 0x8000); // S
-        keymap[2]   = setkc(32,  0x0000, 0x8000); // D
-        keymap[3]   = setkc(33,  0x0000, 0x8000); // F
-        keymap[4]   = setkc(35,  0x0000, 0x8000); // H
+        keymap[0]   = setkc(30,  0x0000, 0x8000); // A              kVK_ANSI_A
+        keymap[1]   = setkc(31,  0x0000, 0x8000); // S              kVK_ANSI_S
+        keymap[2]   = setkc(32,  0x0000, 0x8000); // D              kVK_ANSI_D
+        keymap[3]   = setkc(33,  0x0000, 0x8000); // F              kVK_ANSI_F
+        keymap[4]   = setkc(35,  0x0000, 0x8000); // H              kVK_ANSI_H
         keymap[5]   = setkc(34,  0x0000, 0x8000); // G
         keymap[6]   = setkc(44,  0x0000, 0x8000); // Z
         keymap[7]   = setkc(45,  0x0000, 0x8000); // X
@@ -89,22 +90,28 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
         keymap[54]  = setkc(92,  0x0100, 0x8100); // right win
         keymap[55]  = setkc(91,  0x0100, 0x8100); // left win
         keymap[56]  = setkc(42,  0x0000, 0xC000); // left shift     kVK_Shift
-        // 57
+        keymap[57]  = setkc(58,  0x0000, 0xC000); // caps lock      kVK_CapsLock
         keymap[58]  = setkc(56,  0x0000, 0xC000); // left alt
         keymap[59]  = setkc(29,  0x0000, 0xC000); // left ctrl
         keymap[60]  = setkc(54,  0x0000, 0xC000); // right shift
         keymap[61]  = setkc(56,  0x0100, 0xC100); // right alt
         keymap[62]  = setkc(29,  0x0100, 0xC100); // right ctrl
-
-        keymap[65]  = setkc(83,  0x0100, 0x8100); // NP .
-
+        // 63
+        // 64
+        keymap[65]  = setkc(83,  0x0000, 0x8000); // NP .
+        // 66
         keymap[67]  = setkc(55,  0x0000, 0x8000); // NP *
-
+        // 68
         keymap[69]  = setkc(78,  0x0000, 0x8000); // NP +
-
+        // 70
+        // mac does not use num lock
+        //keymap[71]  = setkc(69,  0x0000, 0xC000); // num lock
+        // 72
+        // 73
+        // 74
         keymap[75]  = setkc(53,  0x0100, 0x8100); // NP /
         keymap[76]  = setkc(28,  0x0100, 0xC100); // NP enter
-
+        // 77
         keymap[78]  = setkc(74,  0x0000, 0x8000); // NP -
 
         keymap[82]  = setkc(82,  0x0000, 0x8000); // NP 0
@@ -118,7 +125,9 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
         // 90
         keymap[91]  = setkc(72,  0x0000, 0x8000); // NP 8
         keymap[92]  = setkc(73,  0x0000, 0x8000); // NP 9
-
+        // 93
+        // 94
+        // 95
         keymap[96]  = setkc(63,  0x0000, 0x8000); // F5
         keymap[97]  = setkc(64,  0x0000, 0x8000); // F6
         keymap[98]  = setkc(65,  0x0000, 0x8000); // F7
@@ -131,7 +140,7 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
         //keymap[105]  = setkc(?,  0x0100, 0x8100); // print screen
 
         keymap[109] = setkc(68,  0x0000, 0x8000); // F10
-        // 110
+        keymap[110] = setkc(93,  0x0100, 0x8100); // menu
         keymap[111] = setkc(88,  0x0000, 0x8000); // F12
 
         keymap[114] = setkc(82,  0x0100, 0x8100); // insert
@@ -157,6 +166,7 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
 -(void)dealloc
 {
     NSLog(@"MClientView dealloc:");
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
     [session release];
     CGContextRelease(tile_context);
     free(tile_pixels);
@@ -173,7 +183,14 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
 //*****************************************************************************
 -(BOOL)acceptsFirstResponder
 {
-    //NSLog(@"acceptsFirstResponder:");
+    NSLog(@"MClientView acceptsFirstResponder:");
+    return YES;
+}
+
+//*****************************************************************************
+-(BOOL)canBecomeKeyView
+{
+    NSLog(@"MClientView canBecomeKeyView:");
     return YES;
 }
 
@@ -227,97 +244,150 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
 }
 
 //*****************************************************************************
--(NSPoint)getLocation:(NSEvent*)event
+-(bool)getLocation:(NSEvent*)event :(NSPoint*)pt;
 {
     NSPoint location;
     // convert the click location into the view coords
     location = [self convertPoint:[event locationInWindow] fromView:nil];
-    location.x = MAX(location.x + 0.5, 0);
-    location.y = MAX((content_size.height - location.y) + 0.5, 0);
-    NSLog(@"getLocation: x %f y %f", location.x, location.y);
-    return location;
+    if ((location.x < 0) || (location.y < 0) ||
+            (location.x > content_size.width) ||
+            (location.y > content_size.height))
+    {
+        return false;
+    }
+    location.x += 0.5;
+    location.y += 0.5;
+    location.y = content_size.height - location.y;
+    //NSLog(@"getLocation: x %f y %f", location.x, location.y);
+    *pt = location;
+    return true;
 }
 
 //*****************************************************************************
 -(void)mouseDown:(NSEvent*)event
 {
-    NSPoint location = [self getLocation:event];
-    [session sendMouseDownEvent:1 :location.x :location.y];
+    NSPoint location;
+    if ([self getLocation:event :&location])
+    {
+        [session sendMouseDownEvent:1 :location.x :location.y];
+    }
 }
 
 //*****************************************************************************
 -(void)mouseUp:(NSEvent*)event
 {
-    NSPoint location = [self getLocation:event];
-    [session sendMouseUpEvent:1 :location.x :location.y];
+    NSPoint location;
+    if ([self getLocation:event :&location])
+    {
+        [session sendMouseUpEvent:1 :location.x :location.y];
+    }
 }
 
 //*****************************************************************************
 -(void)mouseMoved:(NSEvent*)event
 {
-    NSPoint location = [self getLocation:event];
-    [session sendMouseMovedEvent:location.x :location.y];
+    NSPoint location;
+    if ([self getLocation:event :&location])
+    {
+        [session sendMouseMovedEvent:location.x :location.y];
+    }
 }
 
 //*****************************************************************************
 -(void)mouseDragged:(NSEvent*)event
 {
-    NSPoint location = [self getLocation:event];
-    [session sendMouseMovedEvent:location.x :location.y];
+    NSPoint location;
+    if ([self getLocation:event :&location])
+    {
+        [session sendMouseMovedEvent:location.x :location.y];
+    }
 }
 
 //*****************************************************************************
 -(void)rightMouseDown:(NSEvent*)event
 {
-    NSPoint location = [self getLocation:event];
-    [session sendMouseDownEvent:2 :location.x :location.y];
+    NSPoint location;
+    if ([self getLocation:event :&location])
+    {
+        [session sendMouseDownEvent:2 :location.x :location.y];
+    }
 }
 
 //*****************************************************************************
 -(void)rightMouseUp:(NSEvent*)event
 {
-    NSPoint location = [self getLocation:event];
-    [session sendMouseUpEvent:2 :location.x :location.y];
+    NSPoint location;
+    if ([self getLocation:event :&location])
+    {
+        [session sendMouseUpEvent:2 :location.x :location.y];
+    }
 }
 
 //*****************************************************************************
 -(void)rightMouseDragged:(NSEvent*)event
 {
-    NSPoint location = [self getLocation:event];
-    [session sendMouseMovedEvent:location.x :location.y];
+    NSPoint location;
+    if ([self getLocation:event :&location])
+    {
+        [session sendMouseMovedEvent:location.x :location.y];
+    }
 }
 
 //*****************************************************************************
 -(void)otherMouseDown:(NSEvent*)event
 {
-    NSPoint location = [self getLocation:event];
-    int pressed = [event buttonNumber] + 1;
-    [session sendMouseDownEvent:pressed :location.x :location.y];
+    NSPoint location;
+    if ([self getLocation:event :&location])
+    {
+        int pressed = [event buttonNumber] + 1;
+        [session sendMouseDownEvent:pressed :location.x :location.y];
+    }
 }
 
 //*****************************************************************************
 -(void)otherMouseUp:(NSEvent*)event
 {
-    NSPoint location = [self getLocation:event];
-    int pressed = [event buttonNumber] + 1;
-    [session sendMouseUpEvent:pressed :location.x :location.y];
+    NSPoint location;
+    if ([self getLocation:event :&location])
+    {
+        int pressed = [event buttonNumber] + 1;
+        [session sendMouseUpEvent:pressed :location.x :location.y];
+    }
 }
 
 //*****************************************************************************
 -(void)otherMouseDragged:(NSEvent*)event
 {
-    NSPoint location = [self getLocation:event];
-    [session sendMouseMovedEvent:location.x :location.y];
+    NSPoint location;
+    if ([self getLocation:event :&location])
+    {
+        [session sendMouseMovedEvent:location.x :location.y];
+    }
 }
 
 //*****************************************************************************
 -(void)scrollWheel:(NSEvent*)event
 {
-    NSPoint location = [self getLocation:event];
-    float dx = [event deltaX] * -60.0;
-    float dy = [event deltaY] * 60;
-    [session sendMouseWheel: dx :true :location.x :location.y];
-    [session sendMouseWheel: dy :false :location.x :location.y];
+    NSPoint location;
+    if ([self getLocation:event :&location])
+    {
+        float dx = [event deltaX] * -60.0;
+        float dy = [event deltaY] * 60;
+        [session sendMouseWheel: dx :true :location.x :location.y];
+        [session sendMouseWheel: dy :false :location.x :location.y];
+    }
+}
+
+//*****************************************************************************
+-(void)mouseEntered:(NSEvent*)event
+{
+    NSLog(@"mouseEntered:");
+}
+
+//*****************************************************************************
+-(void)mouseExited:(NSEvent*)event
+{
+    NSLog(@"mouseExited:");
 }
 
 //*****************************************************************************
@@ -330,11 +400,29 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
     }
 }
 
+//*************************************************************************
+-(void)sendKeyboardSync:(uint32_t)mod_flags
+{
+    NSLog(@"keyUp: key_code %d", mod_flags);
+    uint32_t toggle_flags = TS_SYNC_NUM_LOCK;
+    if (mod_flags & NSEventModifierFlagCapsLock)
+    {
+        toggle_flags |= TS_SYNC_CAPS_LOCK;
+    }
+    int rv = [session sendKeyboardSync:toggle_flags];
+    need_keyboard_sync = rv != 0;
+}
+
 //*****************************************************************************
 -(void)keyDown:(NSEvent*)event
 {
     uint16_t key_code = [event keyCode];
-    //NSLog(@"keyDown: key_code %d", key_code);
+    if (need_keyboard_sync)
+    {
+        uint32_t mod_flags = [event modifierFlags];
+        [self sendKeyboardSync:mod_flags];
+    }
+    NSLog(@"keyDown: key_code %d", key_code);
     [self processKeyCode:key_code :1];
 }
 
@@ -342,16 +430,22 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
 -(void)keyUp:(NSEvent*)event
 {
     uint16_t key_code = [event keyCode];
-    //NSLog(@"keyUp: key_code %d", key_code);
+    NSLog(@"keyUp: key_code %d", key_code);
     [self processKeyCode:key_code :0];
 }
 
 //*****************************************************************************
 -(void)checkModifier:(uint32_t)mod_flags :(uint16_t)key_code :(uint32_t)flag
 {
-    uint32_t down;
-    if ((down = mod_flags & flag) != (last_mod_flags & flag))
+    uint32_t down = mod_flags & flag;
+    if (down != (last_mod_flags & flag))
     {
+        if (key_code == 57) // kVK_CapsLock
+        {
+            [self processKeyCode:57 :1];
+            [self processKeyCode:57 :0];
+            return;
+        }
         [self processKeyCode:key_code :down];
     }
 }
@@ -361,10 +455,12 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
 {
     uint16_t key_code = [event keyCode];
     uint32_t mod_flags = [event modifierFlags];
+    NSLog(@"flagsChanged: key_code %d mod_flags 0x%8.8X", key_code, mod_flags);
     [self checkModifier:mod_flags :key_code :NSEventModifierFlagControl];
     [self checkModifier:mod_flags :key_code :NSEventModifierFlagShift];
     [self checkModifier:mod_flags :key_code :NSEventModifierFlagOption];
     [self checkModifier:mod_flags :key_code :NSEventModifierFlagCommand];
+    [self checkModifier:mod_flags :key_code :NSEventModifierFlagCapsLock];
     last_mod_flags = mod_flags;
 }
 
@@ -472,6 +568,33 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
 {
     session = asession;
     [session retain];
+}
+
+//*****************************************************************************
+-(void)focusIn
+{
+    NSLog(@"MClientView focusIn:");
+    struct rdp_key_code_t* kc;
+    int index;
+    for (index = 0; index < 256; index++)
+    {
+        kc = (struct rdp_key_code_t*)keymap + index;
+        if (kc->is_down)
+        {
+            NSLog(@"MClientView focusIn: key was down rdp_code %d", kc->code);
+            if ([session sendKeyboardScancode:kc->flags[1] :kc->code] == 0)
+            {
+                kc->is_down = false;
+            }
+        }
+    }
+    need_keyboard_sync = true;
+}
+
+//*****************************************************************************
+-(void)focusOut
+{
+    NSLog(@"MClientView focusOut:");
 }
 
 @end

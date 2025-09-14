@@ -33,6 +33,7 @@ pub fn build(b: *std.Build) void
 const mclient_sources = &.{
     "src/mclient.m",
     "src/mclient_view.m",
+    "src/mclient_window.m",
     "src/mclient_app_delegate.m",
     "src/rdpc_session.m",
     "src/mclient_log.m",
