@@ -982,7 +982,7 @@ can_send(int asck)
     // create NSView
     view = [MClientView alloc];
     [view initWithFrame:NSMakeRect(0, 0, 1, 1)];
-    [view setSession:self];
+    [view setSessionApp:self :app];
     // add view
     [[window contentView] addSubview:view];
 }

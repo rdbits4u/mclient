@@ -10,12 +10,11 @@ struct rdp_key_code_t
 
 @interface MClientView : NSView
 {
+    NSApplication* app;
     NSPoint origin;
     NSSize content_size;
     RDPSession* session;
     CGContextRef bs_context;
-    CGContextRef tile_context;
-    char* tile_pixels;
     struct rdp_key_code_t keymap[256];
     uint32_t last_mod_flags;
     bool need_keyboard_sync;
@@ -25,7 +24,7 @@ struct rdp_key_code_t
         :(int)dst_left :(int)dst_top
         :(unsigned int)dst_width :(unsigned int)dst_height
         :(char*)pixels :(struct rfx_rect*)clips :(unsigned int)num_clips;
--(void)setSession:(RDPSession*)asession;
+-(void)setSessionApp:(RDPSession*)asession :(NSApplication*)aapp;
 -(void)focusIn;
 -(void)focusOut;
 
