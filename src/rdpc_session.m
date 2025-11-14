@@ -13,216 +13,7 @@
 #import "rdpc_session.h"
 #import "mclient_log.h"
 
-//*****************************************************************************
-// callback
-static void
-socketCallback(CFSocketRef theSocketRef,
-               CFSocketCallBackType theCallbackType,
-               CFDataRef theAddress,
-               const void* theData,
-               void* theInfo)
-{
-    RDPSession* session;
-    switch (theCallbackType)
-    {
-        case kCFSocketReadCallBack:
-            session = (RDPSession*)theInfo;
-            [session doRead];
-            break;
-        case kCFSocketWriteCallBack:
-            session = (RDPSession*)theInfo;
-            [session doWrite];
-            break;
-        default:
-            NSLog(@"socketCallback: unknown");
-            break;
-    }
-}
-
-//*****************************************************************************
-// callback
-// int (*log_msg)(struct rdpc_t* rdpc, const char* msg);
-static int
-cb_rdpc_log_msg(struct rdpc_t* rdpc, const char* msg)
-{
-    NSLog(@"cb_rdpc_log_msg: %s", msg);
-    return LIBRDPC_ERROR_NONE;
-}
-
-//*****************************************************************************
-// callback
-// int (*send_to_server)(struct rdpc_t* rdpc, void* data, uint32_t bytes);
-static int
-cb_rdpc_send_to_server(struct rdpc_t* rdpc, void* data, uint32_t bytes)
-{
-    //NSLog(@"cb_rdpc_send_to_server:");
-    if (rdpc != NULL)
-    {
-        if (rdpc->user != NULL)
-        {
-            if (data != NULL)
-            {
-                RDPSession* session = (RDPSession*)(rdpc->user);
-                [session sendToServer:data :bytes];
-                return LIBRDPC_ERROR_NONE;
-            }
-        }
-    }
-    return LIBRDPC_ERROR_PARAM;
-}
-
-//*****************************************************************************
-// callback
-// int (*bitmap_update)(struct rdpc_t* rdpc,
-//                      struct bitmap_data_ex_t* bitmap_data);
-static int
-cb_rdpc_bitmap_update(struct rdpc_t* rdpc,
-                         struct bitmap_data_t* bitmap_data)
-{
-    //NSLog(@"cb_rdpc_bitmap_update:");
-    if (rdpc != NULL)
-    {
-        if (rdpc->user != NULL)
-        {
-            if (bitmap_data != NULL)
-            {
-                RDPSession* session = (RDPSession*)(rdpc->user);
-                [session bitmapUpdate:bitmap_data];
-                return LIBRDPC_ERROR_NONE;
-            }
-        }
-    }
-    return LIBRDPC_ERROR_PARAM;
-}
-
-//*****************************************************************************
-// callback
-// int (*set_surface_bits)(struct rdpc_t* rdpc,
-//                         struct bitmap_data_ex_t* bitmap_data);
-static int
-cb_rdpc_set_surface_bits(struct rdpc_t* rdpc,
-                         struct bitmap_data_ex_t* bitmap_data)
-{
-    //NSLog(@"cb_rdpc_set_surface_bits:");
-    if (rdpc != NULL)
-    {
-        if (rdpc->user != NULL)
-        {
-            if (bitmap_data != NULL)
-            {
-                RDPSession* session = (RDPSession*)(rdpc->user);
-                [session setSurfaceBits:bitmap_data];
-                return LIBRDPC_ERROR_NONE;
-            }
-        }
-    }
-    return LIBRDPC_ERROR_PARAM;
-}
-
-//*****************************************************************************
-// int (*frame_marker)(struct rdpc_t* rdpc, uint16_t frame_action,
-//                     uint32_t frame_id);
-static int
-cb_rdpc_frame_marker(struct rdpc_t* rdpc, uint16_t frame_action,
-                     uint32_t frame_id)
-{
-    //NSLog(@"cb_rdpc_frame_marker:");
-    if (rdpc != NULL)
-    {
-        if (rdpc->user != NULL)
-        {
-            RDPSession* session = (RDPSession*)(rdpc->user);
-            [session frameMarker:frame_action :frame_id];
-            return LIBRDPC_ERROR_NONE;
-        }
-    }
-    return LIBRDPC_ERROR_PARAM;
-}
-
-//*****************************************************************************
-// callback
-// int (*pointer_update)(struct rdpc_t* rdpc,
-//                       struct pointer_t* pointer);
-static int
-cb_rdpc_pointer_update(struct rdpc_t* rdpc,
-                       struct pointer_t* pointer)
-{
-    NSLog(@"cb_rdpc_pointer_update:");
-    if (rdpc != NULL)
-    {
-        if (rdpc->user != NULL)
-        {
-            if (pointer != NULL)
-            {
-                RDPSession* session = (RDPSession*)(rdpc->user);
-                [session pointerUpdate:pointer];
-                return LIBRDPC_ERROR_NONE;
-            }
-        }
-    }
-    return LIBRDPC_ERROR_PARAM;
-}
-
-//*****************************************************************************
-// callback
-// int (*pointer_cached)(struct rdpc_t* rdpc,
-//                       uint16_t cache_index);
-static int
-cb_rdpc_pointer_cached(struct rdpc_t* rdpc, uint16_t cache_index)
-{
-    NSLog(@"cb_rdpc_pointer_cached:");
-    if (rdpc != NULL)
-    {
-        if (rdpc->user != NULL)
-        {
-            RDPSession* session = (RDPSession*)(rdpc->user);
-            [session pointerCached:cache_index];
-            return LIBRDPC_ERROR_NONE;
-        }
-    }
-    return LIBRDPC_ERROR_PARAM;
-}
-
-//*****************************************************************************
-// callback
-// int (*pointer_system)(struct rdpc_t* rdpc,
-//                       uint32_t id);
-static int
-cb_rdpc_pointer_system(struct rdpc_t* rdpc, uint32_t id)
-{
-    NSLog(@"cb_rdpc_pointer_system:");
-    if (rdpc != NULL)
-    {
-        if (rdpc->user != NULL)
-        {
-            RDPSession* session = (RDPSession*)(rdpc->user);
-            [session pointerSystem:id];
-            return LIBRDPC_ERROR_NONE;
-        }
-    }
-    return LIBRDPC_ERROR_PARAM;
-}
-
-//*****************************************************************************
-// callback
-// int (*pointer_pos)(struct rdpc_t* rdpc,
-//                    uint16_t x, uint16_t y);
-static int
-cb_rdpc_pointer_pos(struct rdpc_t* rdpc, uint16_t x, uint16_t y)
-{
-    NSLog(@"cb_rdpc_pointer_pos:");
-    if (rdpc != NULL)
-    {
-        if (rdpc->user != NULL)
-        {
-            RDPSession* session = (RDPSession*)(rdpc->user);
-            [session pointerPos:x :y];
-            return LIBRDPC_ERROR_NONE;
-        }
-    }
-    return LIBRDPC_ERROR_PARAM;
-}
-
+#include "rdpc_session_cb.h"
 
 //*****************************************************************************
 static int
@@ -451,6 +242,68 @@ can_send(int asck)
 }
 
 //*****************************************************************************
+-(int)drawImage:(unsigned int)src_width :(unsigned int)src_height
+        :(int)dst_left :(int)dst_top
+        :(unsigned int)dst_width :(unsigned int)dst_height
+        :(char*)pixels :(struct rfx_rect*)clips :(unsigned int)num_clips
+{
+    CGColorSpaceRef colorSpace;
+    CGContextRef context;
+    CGImageRef image;
+    NSRect rect;
+    NSRect clip;
+    NSRect* ns_clips;
+    int index;
+
+    //NSLog(@"drawImage:");
+    colorSpace = CGColorSpaceCreateDeviceRGB();
+    if (colorSpace != NULL)
+    {
+        CGContextSaveGState(bs_context);
+        clip = NSMakeRect(dst_left, dst_top, dst_width, dst_height);
+        clip = [self flipRect:clip];
+        CGContextClipToRect(bs_context, clip);
+        if (num_clips > 0)
+        {
+            // convert clips
+            ns_clips = (NSRect*)malloc(sizeof(NSRect) * num_clips);
+            if (ns_clips != NULL)
+            {
+                for (index = 0; index < num_clips; index++)
+                {
+                    rect = NSMakeRect(clips[index].x, clips[index].y,
+                            clips[index].cx, clips[index].cy);
+                    ns_clips[index] = [self flipRect:rect];
+                }
+                CGContextClipToRects(bs_context, ns_clips, num_clips);
+                free(ns_clips);
+            }
+        }
+        context = CGBitmapContextCreate(pixels,
+                src_width, src_height, 8, src_width * 4, colorSpace,
+                kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst);
+        if (context != NULL)
+        {
+            image = CGBitmapContextCreateImage(context);
+            if (image != NULL)
+            {
+                // must be src_width and src_height or else
+                // CGContextDrawImage will stretch
+                rect = NSMakeRect(dst_left, dst_top, src_width, src_height);
+                rect = [self flipRect:rect];
+                CGContextDrawImage(bs_context, rect, image);
+                CGImageRelease(image);
+            }
+            CGContextRelease(context);
+        }
+        CGContextRestoreGState(bs_context);
+        CGColorSpaceRelease(colorSpace);
+        [view invalidate:clip :bs_width :bs_height];
+    }
+    return 0;
+}
+
+//*****************************************************************************
 -(int)bitmapUpdate:(struct bitmap_data_t*)abitmap_data
 {
     //NSLog(@"RDPSession bitmapUpdate:");
@@ -481,7 +334,7 @@ can_send(int asck)
                 abitmap_data->dest_left + 1;
         uint32_t dest_height = abitmap_data->dest_bottom -
                 abitmap_data->dest_top + 1;
-        int draw_image_rv = [view drawImage
+        int draw_image_rv = [self drawImage
                 :abitmap_data->width :abitmap_data->height
                 :abitmap_data->dest_left :abitmap_data->dest_top
                 :dest_width :dest_height :rle_ddata_ptr :NULL :0];
@@ -499,12 +352,16 @@ can_send(int asck)
     //NSLog(@"RDPSession setSurfaceBits: codec_id %d", abitmap_data->codec_id);
     if (abitmap_data->codec_id == CODEC_ID_REMOTEFX)
     {
-        int width = rdpc->cgcc.core.desktopWidth;
-        int height = rdpc->cgcc.core.desktopHeight;
+        int width = abitmap_data->width;
+        int height = abitmap_data->height;
         int awidth = (width + 63) & ~63;
         int aheight = (height + 63) & ~63;
-        if (rfxdecoder == NULL)
+        if ((rfxdecoder == NULL) ||
+                (awidth > rfxwidth) || (aheight > rfxheight))
         {
+            free(ddata_ptr);
+            rfxcodec_decode_destroy(rfxdecoder);
+            rfxdecoder = NULL;
             ddata_len = awidth * aheight * 4;
             ddata_ptr = (char*)malloc(ddata_len);
             if (ddata_ptr == NULL)
@@ -523,6 +380,8 @@ can_send(int asck)
                 ddata_len = 0;
                 return 2;
             }
+            rfxwidth = awidth;
+            rfxheight = aheight;
         }
         if (rfxdecoder != NULL)
         {
@@ -545,8 +404,7 @@ can_send(int asck)
                     abitmap_data->dest_left;
             uint32_t dest_height = abitmap_data->dest_bottom -
                     abitmap_data->dest_top;
-            int draw_image_rv = [view drawImage
-                    :abitmap_data->width :abitmap_data->height
+            int draw_image_rv = [self drawImage :awidth :aheight
                     :abitmap_data->dest_left :abitmap_data->dest_top
                     :dest_width :dest_height :ddata_ptr :rects :num_rects];
             if (draw_image_rv != 0)
@@ -571,26 +429,189 @@ can_send(int asck)
 }
 
 //*****************************************************************************
+static uint32_t
+getPointerPixel(uint8_t* data, uint16_t bpp,
+        uint32_t width, uint32_t height, size_t x, size_t y)
+{
+    if (bpp == 32)
+    {
+        size_t offset = y * width * 4 + x * 4;
+        uint32_t pixel = data[offset + 3];
+        pixel = (pixel << 8) | data[offset + 2];
+        pixel = (pixel << 8) | data[offset + 1];
+        pixel = (pixel << 8) | data[offset];
+        return pixel;
+    }
+    else if (bpp == 24)
+    {
+        size_t offset = y * width * 3 + x * 3;
+        uint32_t pixel = data[offset];
+        pixel = (pixel << 8) | data[offset + 1];
+        pixel = (pixel << 8) | data[offset + 2];
+        return pixel | 0xFF000000;
+    }
+    else if (bpp == 16)
+    {
+        size_t offset = y * width * 2 + x * 2;
+        uint32_t pixel = data[offset + 1];
+        pixel = (pixel << 8) | data[offset];
+        uint32_t r = (pixel & 0xF800) >> 11;
+        uint32_t g = (pixel & 0x07E0) >> 5;
+        uint32_t  b = pixel * 0x001F;
+        r = (r << 3) | (r >> 2);
+        g = (g << 2) | (g >> 4);
+        b = (b << 3) | (b >> 2);
+        return (r << 16) | (g << 8) | b | 0xFF000000;
+    }
+    else if (bpp == 15)
+    {
+        size_t offset = y * width * 2 + x * 2;
+        uint32_t pixel = data[offset + 1];
+        pixel = (pixel << 8) | data[offset];
+        uint32_t r = (pixel & 0x7C00) >> 10;
+        uint32_t g = (pixel & 0x3E0) >> 5;
+        uint32_t b = pixel * 0x001F;
+        r = (r << 3) | (r >> 2);
+        g = (g << 3) | (g >> 2);
+        b = (b << 3) | (b >> 2);
+        return (r << 16) | (g << 8) | b | 0xFF000000;
+    }
+    else if (bpp == 1)
+    {
+        uint32_t lwidth = (width + 7) / 8;
+        uint32_t start = (y * lwidth) + x / 8;
+        uint32_t shift = x % 8;
+        uint32_t pixel = data[start];
+        uint32_t mask = 0x80;
+        while (shift > 0)
+        {
+            mask >>= 1;
+            shift -= 1;
+        }
+        pixel = ((pixel & mask) != 0) ? 0xFFFFFFFF : 0xFF000000;
+        return pixel;
+    }
+    return 0;
+}
+
+//*****************************************************************************
+-(uint8_t*)getCursorPixels:(struct pointer_t*)apointer
+{
+    uint32_t y;
+    uint32_t x;
+    uint32_t apixel;
+    uint32_t xpixel;
+    uint32_t yup;
+    uint32_t bpp = (apointer->xor_bpp == 0) ? 24 : apointer->xor_bpp;
+    uint32_t w = apointer->width;
+    uint32_t h = apointer->height;
+    uint8_t* and_data = apointer->and_mask_data;
+    uint8_t* xor_data = apointer->xor_mask_data;
+    uint32_t* pixels = (uint32_t*)malloc(apointer->width * apointer->height * 4);
+
+    if (pixels == NULL)
+    {
+        return NULL;
+    }
+    for (y = 0; y < h; y++)
+    {
+        yup = (h - 1) - y;
+        for (x = 0; x < w; x++)
+        {
+            apixel = getPointerPixel(and_data, 1, w, h, x, yup);
+            xpixel = getPointerPixel(xor_data, bpp, w, h, x, yup);
+            if ((apixel & 0xFFFFFF) != 0)
+            {
+                if ((xpixel & 0xFFFFFF) == 0xFFFFFF)
+                {
+                    // use pattern (not solid black) for xor area
+                    xpixel = ((x & 1) == (y & 1)) ? 0xFFFFFFFF : 0xFF000000;
+                }
+                else if (xpixel == 0xFF000000)
+                {
+                    xpixel = 0;
+                }
+            }
+            pixels[w * y + x] = xpixel;
+        }
+    }
+    return (uint8_t*)pixels;
+}
+
+//*****************************************************************************
 -(int)pointerUpdate:(struct pointer_t*)apointer
 {
-    NSLog(@"RDPSession pointerUpdate: bpp %d", apointer->xor_bpp);
-    NSData* data = [[NSData alloc] initWithBytes:apointer->xor_mask_data
-            length:apointer->length_xor_mask];
-    NSImage* image = [[NSImage alloc] initWithData:data];
-    NSPoint hotspot = NSMakePoint(apointer->hotx, apointer->hoty);
-    NSCursor* cur = [[NSCursor alloc] initWithImage:image
-            hotSpot:hotspot];
-    [cur set];
-    [cur release];
-    [image release];
-    [data release];
+    NSLog(@"RDPSession pointerUpdate: bpp %d width %d height %d",
+            apointer->xor_bpp, apointer->width, apointer->height);
+    uint8_t* cursor_data = [self getCursorPixels:apointer];
+    if (cursor_data == NULL)
+    {
+        return 0;
+    }
+    NSBitmapImageRep* bmiRep;
+    bmiRep = [NSBitmapImageRep alloc];
+    if (bmiRep != nil)
+    {
+        [bmiRep initWithBitmapDataPlanes:&cursor_data
+                pixelsWide:apointer->width
+                pixelsHigh:apointer->height
+                bitsPerSample:8
+                samplesPerPixel:4
+                hasAlpha:YES
+                isPlanar:NO
+                colorSpaceName:NSDeviceRGBColorSpace
+                bitmapFormat:0
+                bytesPerRow:apointer->width * 4
+                bitsPerPixel:0];
+        NSImage* image = [NSImage alloc];
+        if (image != nil)
+        {
+            [image initWithSize:[bmiRep size]];
+            [image addRepresentation: bmiRep];
+            NSCursor* cur = [NSCursor alloc];
+            if (cur != nil)
+            {
+                NSPoint hotspot = NSMakePoint(apointer->hotx,
+                        apointer->hoty);
+                [cur initWithImage:image hotSpot:hotspot];
+                if (apointer->cache_index < MAX_CURSORS)
+                {
+                    [cur retain];
+                    [cursors[apointer->cache_index] release];
+                    cursors[apointer->cache_index] = cur;
+                }
+                [view setCursor:cur];
+                [cur release];
+            }
+            else
+            {
+                NSLog(@"RDPSession pointerUpdate: NSCursor failed");
+            }
+            [image release];
+        }
+        else
+        {
+            NSLog(@"RDPSession pointerUpdate: NSImage failed");
+        }
+        [bmiRep release];
+    }
+    else
+    {
+        NSLog(@"RDPSession pointerUpdate: NSBitmapImageRep failed");
+    }
+    free(cursor_data);
     return 0;
 }
 
 //*****************************************************************************
 -(int)pointerCached:(uint16_t)cache_index
 {
-    NSLog(@"RDPSession pointerCached:");
+    NSLog(@"RDPSession pointerCached: cache_index %d", cache_index);
+    if (cache_index < MAX_CURSORS)
+    {
+        NSCursor* cur = cursors[cache_index];
+        [view setCursor:cur];
+    }
     return 0;
 }
 
@@ -598,6 +619,15 @@ can_send(int asck)
 -(int)pointerSystem:(uint32_t)id
 {
     NSLog(@"RDPSession pointerSystem:");
+    if (id == 0)
+    {
+        [view setCursor:nil];
+    }
+    else
+    {
+        NSCursor* cur = [NSCursor arrowCursor];
+        [view setCursor:cur];
+    }
     return 0;
 }
 
@@ -712,6 +742,8 @@ can_send(int asck)
             }
             else
             {
+                NSLog(@"readProcessServerData: rdpc_process_server_data "
+                        "failed rv %d", rv);
                 return 3;
             }
         }
@@ -737,6 +769,7 @@ can_send(int asck)
         }
         int width = rdpc->cgcc.core.desktopWidth;
         int height = rdpc->cgcc.core.desktopHeight;
+        [self resizeBackingStore:width :height];
         [self createWindow:width :height];
     }
     if (send_head != NULL)
@@ -771,6 +804,7 @@ can_send(int asck)
 //*****************************************************************************
 -(void)sendMouseMovedEvent:(uint16_t)x :(uint16_t)y
 {
+    //NSLog(@"sendMouseMovedEvent: x %d y %d", x, y);
     rdpc_send_mouse_event(rdpc, PTRFLAGS_MOVE, x, y);
 }
 
@@ -845,6 +879,8 @@ can_send(int asck)
 //*****************************************************************************
 -(int)sendKeyboardScancode:(uint16_t)flags :(uint16_t)code
 {
+    NSLog(@"sendKeyboardScancode: flags 0x%4.4X code 0x%4.4X",
+            (uint32_t)flags, (uint32_t)code);
     if (rdpc_send_keyboard_scancode(rdpc, flags, code) != 0)
     {
         return 1;
@@ -942,8 +978,10 @@ can_send(int asck)
 -(void)doRead;
 {
     //NSLog(@"doRead:");
-    if ([self readProcessServerData] != 0)
+    int rv = [self readProcessServerData];
+    if (rv != 0)
     {
+        NSLog(@"doRead: readProcessServerData failed rv %d", rv);
         [app terminate:self];
         return;
     }
@@ -954,12 +992,65 @@ can_send(int asck)
 -(void)doWrite;
 {
     //NSLog(@"doWrite:");
-    if ([self processWriteServerData] != 0)
+    int rv = [self processWriteServerData];
+    if (rv != 0)
     {
+        NSLog(@"doRead: processWriteServerData failed rv %d", rv);
         [app terminate:self];
         return;
     }
     [self setupRunLoop];
+}
+
+//*****************************************************************************
+-(NSRect)flipRect:(NSRect)arect
+{
+    CGFloat height = bs_height;
+    arect.origin.y = (height - arect.origin.y) - arect.size.height;
+    return arect;
+}
+
+//*****************************************************************************
+-(int)resizeBackingStore:(int)width :(int)height
+{
+    NSLog(@"resizeBackingStore:");
+
+    if ((width == bs_width) && (height == bs_height))
+    {
+        return 0;
+    }
+    // create new backing store, copy old to new
+    CGContextRef save_bs_context = bs_context;
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    if (colorSpace != NULL)
+    {
+        bs_context = CGBitmapContextCreate(NULL,
+                width, height, 8, 0, colorSpace,
+                kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst);
+        CGColorSpaceRelease(colorSpace);
+    }
+    if (bs_context == NULL)
+    {
+        NSLog(@"resizeBackingStore: failed to create bs_context");
+        return 1;
+    }
+    if (save_bs_context != NULL)
+    {
+        CGImageRef cgImage = CGBitmapContextCreateImage(save_bs_context);
+        if (cgImage != NULL)
+        {
+            CGContextSaveGState(bs_context);
+            NSRect rect = NSMakeRect(0, 0, bs_width, bs_height);
+            rect = [self flipRect:rect];
+            CGContextDrawImage(bs_context, rect, cgImage);
+            CGContextRestoreGState(bs_context);
+            CGImageRelease(cgImage);
+        }
+        CGContextRelease(save_bs_context);
+    }
+    bs_width = width;
+    bs_height = height;
+    return 0;
 }
 
 //*****************************************************************************
@@ -985,6 +1076,13 @@ can_send(int asck)
     [view setSessionApp:self :app];
     // add view
     [[window contentView] addSubview:view];
+    return 0;
+}
+
+//*****************************************************************************
+-(CGContextRef)getBackingStore;
+{
+    return bs_context;
 }
 
 @end

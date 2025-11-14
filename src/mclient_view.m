@@ -198,14 +198,6 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
 }
 
 //*****************************************************************************
--(NSRect)flipRect:(NSRect)arect
-{
-    arect.origin.y = (content_size.height - arect.origin.y) -
-            arect.size.height;
-    return arect;
-}
-
-//*****************************************************************************
 -(void)updateTrackingAreas
 {
     NSLog(@"updateTrackingAreas");
@@ -217,14 +209,11 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
     }
     NSWindow* window = [self window];
     NSRect frameRect = window.frame;
-    NSRect contentRect = [window contentRectForFrameRect:frameRect];
-    NSSize save_contexnt_size = content_size;
-    content_size = contentRect.size;
-    NSLog(@"updateTrackingAreas: contextRect size width %f height %f",
-            content_size.width, content_size.height);
-    origin.x = NSWidth(frameRect) - NSWidth(contentRect);
-    origin.y = NSHeight(frameRect) - NSHeight(contentRect);
-    NSLog(@"updateTrackingAreas: origin x %f y %f", origin.x, origin.y);
+    contentRect = [window contentRectForFrameRect:frameRect];
+    NSLog(@"updateTrackingAreas: contextRect origin x %f y %f "
+            "size width %f height %f",
+            contentRect.origin.x, contentRect.origin.y,
+            contentRect.size.width, contentRect.size.height);
     // resize the view to match the window
     NSRect frame = window.frame;
     frame.origin.x = 0;
@@ -233,7 +222,13 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
     // Add the new tracking area
     NSTrackingAreaOptions opts = NSTrackingActiveAlways |
             NSTrackingInVisibleRect | NSTrackingMouseMoved |
-            NSTrackingMouseEnteredAndExited;
+            NSTrackingMouseEnteredAndExited
+#if 1
+            |
+            NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved |
+            NSTrackingCursorUpdate | NSTrackingEnabledDuringMouseDrag |
+            NSTrackingActiveWhenFirstResponder;
+#endif
     area = [NSTrackingArea alloc];
     NSRect bounds = [self bounds];
     [area initWithRect:bounds options:opts owner:self userInfo:nil];
@@ -241,52 +236,39 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
     [super updateTrackingAreas]; // Call super's implementation
     [area release];
 
-    // create new backing store, copy old to new
-    CGContextRef save_bs_context = bs_context;
-    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-    if (colorSpace != NULL)
+    if (resizeTimer != nil)
     {
-        bs_context = CGBitmapContextCreate(NULL,
-                NSWidth(contentRect), NSHeight(contentRect), 8, 0, colorSpace,
-                kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst);
-        CGColorSpaceRelease(colorSpace);
-        if (bs_context == NULL)
-        {
-            NSLog(@"updateTrackingAreas: failed to create bs_context");
-            [app terminate:self];
-            return;
-        }
+        [resizeTimer invalidate];
+        resizeTimer = nil;
     }
+    resizeTimer = [NSTimer scheduledTimerWithTimeInterval:1.0 target:self
+            selector:@selector(resizeTimerCallback) userInfo:nil repeats:NO];
 
-    CGImageRef cgImage = CGBitmapContextCreateImage(save_bs_context);
-    if (cgImage != NULL)
-    {
-        CGContextSaveGState(bs_context);
-        NSRect rect = NSMakeRect(0, 0,
-                save_contexnt_size.width, save_contexnt_size.height);
-        rect = [self flipRect:rect];
-        CGContextDrawImage(bs_context, rect, cgImage);
-        CGContextRestoreGState(bs_context);
-        CGImageRelease(cgImage);
-    }
-    CGContextRelease(save_bs_context);
+}
+
+//*****************************************************************************
+-(void)resizeTimerCallback
+{
+    NSLog(@"resizeTimerCallback");
+    resizeTimer = nil;
 }
 
 //*****************************************************************************
 -(bool)getLocation:(NSEvent*)event :(NSPoint*)pt;
 {
     NSPoint location;
+    CGFloat width = NSWidth(contentRect);
+    CGFloat height = NSHeight(contentRect);
     // convert the click location into the view coords
     location = [self convertPoint:[event locationInWindow] fromView:nil];
     if ((location.x < 0) || (location.y < 0) ||
-            (location.x > content_size.width) ||
-            (location.y > content_size.height))
+            (location.x > width) || (location.y > height))
     {
         return false;
     }
-    location.x += 0.5;
-    location.y += 0.5;
-    location.y = content_size.height - location.y;
+    location.y = height - location.y;
+    location.x += bs_origin.x + 0.5;
+    location.y += bs_origin.y + 0.5;
     //NSLog(@"getLocation: x %f y %f", location.x, location.y);
     *pt = location;
     return true;
@@ -452,7 +434,7 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
         [self sendKeyboardSync:mod_flags];
         last_mod_flags = mod_flags;
     }
-    NSLog(@"keyDown: key_code %d", key_code);
+    NSLog(@"keyDown: key_code 0x%4.4X", (uint32_t)key_code);
     [self processKeyCode:key_code :1];
 }
 
@@ -460,7 +442,7 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
 -(void)keyUp:(NSEvent*)event
 {
     uint16_t key_code = [event keyCode];
-    NSLog(@"keyUp: key_code %d", key_code);
+    NSLog(@"keyUp: key_code 0x%4.4X", (uint32_t)key_code);
     [self processKeyCode:key_code :0];
 }
 
@@ -485,7 +467,7 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
 {
     uint16_t key_code = [event keyCode];
     uint32_t mod_flags = [event modifierFlags];
-    NSLog(@"flagsChanged: key_code %d mod_flags 0x%8.8X", key_code, mod_flags);
+    NSLog(@"flagsChanged: key_code %d mod_flags 0x%8.8X", (int)key_code, mod_flags);
     [self checkModifier:mod_flags :key_code :NSEventModifierFlagControl];
     [self checkModifier:mod_flags :key_code :NSEventModifierFlagShift];
     [self checkModifier:mod_flags :key_code :NSEventModifierFlagOption];
@@ -498,8 +480,11 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
 -(void)drawRect:(NSRect) dirtyRect
 {
     //NSLog(@"drawRect");
+    //NSLog(@"drawRect: %f %f %f %f", contentRect.origin.x, contentRect.origin.y,
+    //        contentRect.size.width, contentRect.size.height);
     CGContextRef cgContext =
             [[NSGraphicsContext currentContext] CGContext];
+    CGContextRef bs_context = [session getBackingStore];
     if (bs_context != NULL)
     {
         if (cgContext != NULL)
@@ -512,8 +497,10 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
                         kCGInterpolationNone);
                 CGRect rect = dirtyRect;
                 CGContextClipToRect(cgContext, rect);
-                rect.origin = NSMakePoint(0, 0);
-                rect.size = content_size;
+                int image_width = CGImageGetWidth(cgImage);
+                int image_height = CGImageGetHeight(cgImage);
+                rect = NSMakeRect(0, 0, image_width, image_height);
+                rect.origin.y += NSHeight(contentRect) - image_height;
                 CGContextDrawImage(cgContext, rect, cgImage);
                 CGContextRestoreGState(cgContext);
                 CGImageRelease(cgImage);
@@ -521,68 +508,6 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
         }
     }
     [super drawRect:dirtyRect];
-}
-
-//*****************************************************************************
--(int)drawImage:(unsigned int)src_width :(unsigned int)src_height
-        :(int)dst_left :(int)dst_top
-        :(unsigned int)dst_width :(unsigned int)dst_height
-        :(char*)pixels :(struct rfx_rect*)clips :(unsigned int)num_clips
-{
-    CGColorSpaceRef colorSpace;
-    CGContextRef context;
-    CGImageRef image;
-    NSRect rect;
-    NSRect clip;
-    NSRect* ns_clips;
-    int index;
-
-    //NSLog(@"drawImage:");
-    colorSpace = CGColorSpaceCreateDeviceRGB();
-    if (colorSpace != NULL)
-    {
-        CGContextSaveGState(bs_context);
-        clip = NSMakeRect(dst_left, dst_top, dst_width, dst_height);
-        clip = [self flipRect:clip];
-        CGContextClipToRect(bs_context, clip);
-        if (num_clips > 0)
-        {
-            // convert clips
-            ns_clips = (NSRect*)malloc(sizeof(NSRect) * num_clips);
-            if (ns_clips != NULL)
-            {
-                for (index = 0; index < num_clips; index++)
-                {
-                    rect = NSMakeRect(clips[index].x, clips[index].y,
-                            clips[index].cx, clips[index].cy);
-                    ns_clips[index] = [self flipRect:rect];
-                }
-                CGContextClipToRects(bs_context, ns_clips, num_clips);
-                free(ns_clips);
-            }
-        }
-        context = CGBitmapContextCreate(pixels,
-                src_width, src_height, 8, src_width * 4, colorSpace,
-                kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst);
-        if (context != NULL)
-        {
-            image = CGBitmapContextCreateImage(context);
-            if (image != NULL)
-            {
-                // must be src_width and src_height or else
-                // CGContextDrawImage will stretch
-                rect = NSMakeRect(dst_left, dst_top, src_width, src_height);
-                rect = [self flipRect:rect];
-                CGContextDrawImage(bs_context, rect, image);
-                CGImageRelease(image);
-            }
-            CGContextRelease(context);
-        }
-        CGContextRestoreGState(bs_context);
-        CGColorSpaceRelease(colorSpace);
-        [self setNeedsDisplayInRect:clip];
-    }
-    return 0;
 }
 
 //*****************************************************************************
@@ -594,14 +519,13 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
 }
 
 //*****************************************************************************
--(void)focusIn
+-(void)upAllDownKeys
 {
-    NSLog(@"MClientView focusIn:");
     struct rdp_key_code_t* kc;
     int index;
     for (index = 0; index < 256; index++)
     {
-        kc = (struct rdp_key_code_t*)keymap + index;
+        kc = keymap + index;
         if (kc->is_down)
         {
             NSLog(@"MClientView focusIn: key was down rdp_code %d", kc->code);
@@ -611,6 +535,13 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
             }
         }
     }
+}
+
+//*****************************************************************************
+-(void)focusIn
+{
+    NSLog(@"MClientView focusIn:");
+    [self upAllDownKeys];
     need_keyboard_sync = true;
 }
 
@@ -618,6 +549,26 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
 -(void)focusOut
 {
     NSLog(@"MClientView focusOut:");
+}
+
+//*****************************************************************************
+-(void)invalidate:(NSRect)arect :(int)width :(int)height
+{
+    arect.origin.y += NSHeight(contentRect) - height;
+    [self setNeedsDisplayInRect:arect];
+}
+
+//*****************************************************************************
+-(void)setCursor:(NSCursor*)cur
+{
+    NSLog(@"MClientView setCursor: cur %p", cur);
+    if (cur == nil)
+    {
+    }
+    else
+    {
+        [cur set];
+    }
 }
 
 @end

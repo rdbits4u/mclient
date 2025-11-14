@@ -20,6 +20,8 @@ struct send_t
     struct send_t* next;
 };
 
+#define MAX_CURSORS 64
+
 @class MClientView;
 
 @interface RDPSession : NSObject
@@ -44,6 +46,8 @@ struct send_t
 
     // set_surface_bits
     void* rfxdecoder;
+    uint32_t rfxwidth;
+    uint32_t rfxheight;
     char* ddata_ptr;
     size_t ddata_len;
 
@@ -51,6 +55,12 @@ struct send_t
     char* rle_ddata_ptr;
     char* rle_tdata_ptr;
     size_t rle_ddata_len;
+
+    CGContextRef bs_context;
+    int bs_width;
+    int bs_height;
+
+    NSCursor* cursors[MAX_CURSORS];
 
 }
 
@@ -86,5 +96,7 @@ struct send_t
 -(void)doWrite;
 
 -(int)createWindow:(int)width :(int)height;
+
+-(CGContextRef)getBackingStore;
 
 @end
