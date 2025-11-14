@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 pub fn build(b: *std.Build) void
 {
@@ -8,8 +9,8 @@ pub fn build(b: *std.Build) void
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     // mclient
-    const mclient = b.addExecutable(.{.name = "mclient",
-            .target = target, .optimize = optimize, .strip = do_strip});
+
+    const mclient = myAddExecutable(b, "mclient", target, optimize, do_strip);
     mclient.linkLibC();
     mclient.linkFramework("Cocoa");
     mclient.linkFramework("QuartzCore");
@@ -28,6 +29,31 @@ pub fn build(b: *std.Build) void
     mclient.addObjectFile(b.path("../librfxcodec/zig-out/lib/librfxdecode.a"));
     mclient.addObjectFile(b.path("../librlecodec/zig-out/lib/librledecode.a"));
     b.installArtifact(mclient);
+}
+
+//*****************************************************************************
+fn myAddExecutable(b: *std.Build, name: []const u8,
+        target: std.Build.ResolvedTarget,
+        optimize: std.builtin.OptimizeMode,
+        do_strip: bool) *std.Build.Step.Compile
+{
+    if ((builtin.zig_version.major == 0) and (builtin.zig_version.minor < 15))
+    {
+        return b.addExecutable(.{
+            .name = name,
+            .target = target,
+            .optimize = optimize,
+            .strip = do_strip,
+        });
+    }
+    return b.addExecutable(.{
+        .name = name,
+        .root_module = b.addModule(name, .{
+            .target = target,
+            .optimize = optimize,
+            .strip = do_strip,
+        }),
+    });
 }
 
 const mclient_sources = &.{
