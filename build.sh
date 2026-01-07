@@ -1,6 +1,6 @@
 #!/bin/sh
 
-listOfProjects="librfxcodec librlecodec rdpc svc cliprdr rdpsnd mclient"
+listOfProjects="librfxcodec librlecodec rdpc svc cliprdr rdpsnd drdynvc edisp mclient"
 
 # check that all projects exist
 for proj in $listOfProjects
@@ -54,6 +54,19 @@ then
     done
     exit 0
 fi
+
+# pull
+if [ "$1" = "pull" ]
+then
+    for proj in $listOfProjects
+    do
+        echo "status ../$proj"
+        cd ../$proj
+        git pull
+    done
+    exit 0
+fi
+
 
 # release build
 for proj in $listOfProjects

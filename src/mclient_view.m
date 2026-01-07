@@ -198,6 +198,12 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
 }
 
 //*****************************************************************************
+-(void)resizeTimerCallback:(NSTimer*)timer
+{
+    NSLog(@"resizeTimerCallback");
+}
+
+//*****************************************************************************
 -(void)updateTrackingAreas
 {
     NSLog(@"updateTrackingAreas");
@@ -221,36 +227,23 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
     self.frame = frame;
     // Add the new tracking area
     NSTrackingAreaOptions opts = NSTrackingActiveAlways |
-            NSTrackingInVisibleRect | NSTrackingMouseMoved |
-            NSTrackingMouseEnteredAndExited
-#if 1
-            |
-            NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved |
-            NSTrackingCursorUpdate | NSTrackingEnabledDuringMouseDrag |
+            NSTrackingInVisibleRect |
+            NSTrackingMouseEnteredAndExited |
+            NSTrackingMouseMoved |
+            NSTrackingCursorUpdate |
+            NSTrackingEnabledDuringMouseDrag |
             NSTrackingActiveWhenFirstResponder;
-#endif
     area = [NSTrackingArea alloc];
     NSRect bounds = [self bounds];
     [area initWithRect:bounds options:opts owner:self userInfo:nil];
     [self addTrackingArea:area];
     [super updateTrackingAreas]; // Call super's implementation
     [area release];
-
-    if (resizeTimer != nil)
-    {
-        [resizeTimer invalidate];
-        resizeTimer = nil;
-    }
+    [resizeTimer invalidate];
+    [resizeTimer release];
     resizeTimer = [NSTimer scheduledTimerWithTimeInterval:1.0 target:self
-            selector:@selector(resizeTimerCallback) userInfo:nil repeats:NO];
-
-}
-
-//*****************************************************************************
--(void)resizeTimerCallback
-{
-    NSLog(@"resizeTimerCallback");
-    resizeTimer = nil;
+            selector:@selector(resizeTimerCallback:) userInfo:nil repeats:NO];
+    [resizeTimer retain];
 }
 
 //*****************************************************************************
@@ -393,6 +386,7 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
 -(void)mouseEntered:(NSEvent*)event
 {
     NSLog(@"mouseEntered:");
+    [last_cur set];
 }
 
 //*****************************************************************************
@@ -543,6 +537,7 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
     NSLog(@"MClientView focusIn:");
     [self upAllDownKeys];
     need_keyboard_sync = true;
+    [last_cur set];
 }
 
 //*****************************************************************************
@@ -562,13 +557,10 @@ setkc(uint16_t code, uint16_t flags0, uint16_t flags1)
 -(void)setCursor:(NSCursor*)cur
 {
     NSLog(@"MClientView setCursor: cur %p", cur);
-    if (cur == nil)
-    {
-    }
-    else
-    {
-        [cur set];
-    }
+    [last_cur release];
+    last_cur = cur;
+    [cur retain];
+    [cur set];
 }
 
 @end

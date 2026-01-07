@@ -18,6 +18,7 @@ struct rdp_key_code_t
     bool need_keyboard_sync;
     NSPoint bs_origin;
     NSTimer* resizeTimer;
+    NSCursor* last_cur;
 }
 
 -(void)setSessionApp:(RDPSession*)asession :(NSApplication*)aapp;

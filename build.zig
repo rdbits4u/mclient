@@ -21,6 +21,8 @@ pub fn build(b: *std.Build) void
     mclient.addIncludePath(b.path("../rdpsnd/include"));
     mclient.addIncludePath(b.path("../librfxcodec/include"));
     mclient.addIncludePath(b.path("../librlecodec/include"));
+    mclient.addIncludePath(b.path("../drdynvc/include"));
+    mclient.addIncludePath(b.path("../edisp/include"));
     mclient.addCSourceFiles(.{ .files = mclient_sources, } );
     mclient.addObjectFile(b.path("../rdpc/zig-out/lib/librdpc.a"));
     mclient.addObjectFile(b.path("../svc/zig-out/lib/libsvc.a"));
@@ -28,6 +30,8 @@ pub fn build(b: *std.Build) void
     mclient.addObjectFile(b.path("../rdpsnd/zig-out/lib/librdpsnd.a"));
     mclient.addObjectFile(b.path("../librfxcodec/zig-out/lib/librfxdecode.a"));
     mclient.addObjectFile(b.path("../librlecodec/zig-out/lib/librledecode.a"));
+    mclient.addObjectFile(b.path("../drdynvc/zig-out/lib/libdrdynvc.a"));
+    mclient.addObjectFile(b.path("../edisp/zig-out/lib/libedisp.a"));
     b.installArtifact(mclient);
 }
 

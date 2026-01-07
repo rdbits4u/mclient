@@ -6,6 +6,9 @@
 #include <librdpsnd.h>
 #include <rlecodec_decode.h>
 #include <rfxcodec_decode.h>
+#include <libdrdynvc.h>
+#include <libedisp.h>
+
 #import <Cocoa/Cocoa.h>
 #import "mclient_app_delegate.h"
 #import "mclient_view.h"
@@ -177,12 +180,117 @@ can_send(int asck)
         rdpc->pointer_system = cb_rdpc_pointer_system;
         rdpc->pointer_pos = cb_rdpc_pointer_pos;
 
+        // setup svc
+        rv = svc_create(&svc);
+        NSLog(@"RDPSession initWithSettings: svc_create rv %d", rv);
+        if (rv != LIBSVC_ERROR_NONE)
+        {
+            return nil;
+        }
+        svc->user = self;
+        svc->log_msg = cb_svc_log_msg;
+        svc->send_data = cb_svc_send_data;
+
+        // setup channels
+        struct TS_UD_CS_NET* gcc_net = &rdpc->cgcc.net;
+
+        // setup drdynvc
+        rv = drdynvc_create(&drdynvc);
+        NSLog(@"RDPSession initWithSettings: drdynvc_create rv %d", rv);
+        if (rv != LIBDRDYNVC_ERROR_NONE)
+        {
+            return nil;
+        }
+        drdynvc->user = self;
+        drdynvc->log_msg = cb_drdynvc_log_msg;
+        drdynvc->send_data = cb_drdynvc_svc_send_data;
+        drdynvc->process_cap_request = cb_drdynvc_process_cap_request;
+        drdynvc->process_create_request = cb_drdynvc_process_create_request;
+        drdynvc->process_data_first = cb_drdynvc_process_data_first;
+        drdynvc->process_data = cb_drdynvc_process_data;
+        drdynvc->process_close = cb_drdynvc_process_close;
+        size_t chan_index = gcc_net->channelCount;
+        struct CHANNEL_DEF* chan = &gcc_net->channelDefArray[chan_index];
+        memcpy(&chan->name, "DRDYNVC", 8);
+        chan->options = 0;
+        svc->channels[chan_index].user = self;
+        svc->channels[chan_index].process_data = cb_svc_drdynvc_process_data;
+        gcc_net->channelCount += 1;
+
+        // setup cliprdr
+        rv = cliprdr_create(&cliprdr);
+        NSLog(@"RDPSession initWithSettings: cliprdr_create rv %d", rv);
+        if (rv != LIBCLIPRDR_ERROR_NONE)
+        {
+            return nil;
+        }
+        cliprdr->user = self;
+        cliprdr->log_msg = cb_cliprdr_log_msg;
+        cliprdr->send_data = cb_cliprdr_svc_send_data;
+        cliprdr->ready = cb_cliprdr_ready;
+        cliprdr->format_list = cb_cliprdr_format_list;
+        cliprdr->format_list_response = cb_cliprdr_format_list_response;
+        cliprdr->data_request = cb_cliprdr_data_request;
+        cliprdr->data_response = cb_cliprdr_data_response;
+        chan_index = gcc_net->channelCount;
+        chan = &gcc_net->channelDefArray[chan_index];
+        memcpy(chan->name, "CLIPRDR", 8);
+        chan->options = 0;
+        svc->channels[chan_index].user = self;
+        svc->channels[chan_index].process_data = cb_svc_cliprdr_process_data;
+        gcc_net->channelCount += 1;
+
+        // setup rdpsnd
+        rv = rdpsnd_create(&rdpsnd);
+        NSLog(@"RDPSession initWithSettings: rdpsnd_create rv %d", rv);
+        if (rv != LIBRDPSND_ERROR_NONE)
+        {
+            return nil;
+        }
+        rdpsnd->user = self;
+        rdpsnd->log_msg = cb_rdpsnd_log_msg;
+        rdpsnd->send_data = cb_rdpsnd_svc_send_data;
+        rdpsnd->process_close = cb_rdpsnd_process_close;
+        rdpsnd->process_wave = cb_rdpsnd_process_wave;
+        rdpsnd->process_training = cb_rdpsnd_process_training;
+        rdpsnd->process_formats = cb_rdpsnd_process_formats;
+        chan_index = gcc_net->channelCount;
+        chan = &gcc_net->channelDefArray[chan_index];
+        memcpy(chan->name, "RDPSND\0", 8);
+        chan->options = 0;
+        svc->channels[chan_index].user = self;
+        svc->channels[chan_index].process_data = cb_svc_rdpsnd_process_data;
+        gcc_net->channelCount += 1;
+
+        // setup edisp
+        rv = edisp_create(&edisp);
+        NSLog(@"RDPSession initWithSettings: edisp_create rv %d", rv);
+        if (rv != LIBEDISP_ERROR_NONE)
+        {
+            return nil;
+        }
+        edisp->user = self;
+        edisp->log_msg = cb_edisp_log_msg;
+        edisp->send_data = cb_edisp_drdynvc_send_data;
+        edisp->process_caps = cb_edisp_process_caps;
+
         connectInfo = aconnectInfo;
         [connectInfo retain];
         in_data_size = 128 * 1024;
         in_data = (char*)malloc(in_data_size);
+
+        drdynvc_svc_channel_id = 0;
+        edisp_drdynvc_channel_id = 0xFFFFFFFF;
+        egfx_drdynvc_channel_id = 0xFFFFFFFF;
+
     }
     return self;
+}
+
+//*****************************************************************************
+-(int)logMsg:(const char*)msg
+{
+    NSLog(@"%s", msg);
 }
 
 //*****************************************************************************
@@ -1080,9 +1188,208 @@ getPointerPixel(uint8_t* data, uint16_t bpp,
 }
 
 //*****************************************************************************
--(CGContextRef)getBackingStore;
+-(CGContextRef)getBackingStore
 {
     return bs_context;
+}
+
+//*****************************************************************************
+-(int)drdynvcProcessCapRequest
+        :(uint16_t)channel_id :(uint16_t)version
+        :(uint16_t)pc0 :(uint16_t)pc1
+        :(uint16_t)pc2 :(uint16_t)pc3
+{
+    return drdynvc_send_cap_response(drdynvc, channel_id, version);
+}
+
+static const NSString* g_edisp_name = @"Microsoft::Windows::RDS::DisplayControl";
+static const NSString* g_egfx_name = @"Microsoft::Windows::RDS::Graphics";
+
+//*****************************************************************************
+-(int)drdynvcProcessCreateRequest
+        :(uint16_t)channel_id :(uint32_t)drdynvc_channel_id
+        :(NSString*)channel_name
+{
+    if ([channel_name isEqualToString:g_edisp_name])
+    {
+        drdynvc_svc_channel_id = channel_id;
+        edisp_drdynvc_channel_id = drdynvc_channel_id;
+        return drdynvc_send_create_response(drdynvc, channel_id,
+                drdynvc_channel_id, 0);
+    }
+    else if ([channel_name isEqualToString:g_egfx_name])
+    {
+        drdynvc_svc_channel_id = channel_id;
+        egfx_drdynvc_channel_id = drdynvc_channel_id;
+        return drdynvc_send_create_response(drdynvc, channel_id,
+                drdynvc_channel_id, 0);
+    }
+    else
+    {
+        return drdynvc_send_create_response(drdynvc, channel_id,
+                drdynvc_channel_id, 1);
+    }
+    return 0;
+}
+
+//*****************************************************************************
+-(int)drdynvcProcessDataFirst
+        :(uint16_t)channel_id :(uint32_t)drdynvc_channel_id
+        :(uint32_t)total_bytes :(void*)data :(uint32_t)bytes
+{
+    return 0;
+}
+
+//*****************************************************************************
+-(int)drdynvcProcessData
+        :(uint16_t)channel_id :(uint32_t)drdynvc_channel_id
+        :(void*)data :(uint32_t)bytes
+{
+    if (drdynvc_channel_id == edisp_drdynvc_channel_id)
+    {
+        if (edisp_process_data(edisp, channel_id, drdynvc_channel_id,
+                data, bytes) != LIBEDISP_ERROR_NONE)
+        {
+            return LIBDRDYNVC_ERROR_DATA;
+        }
+    }
+    return LIBDRDYNVC_ERROR_NONE;
+}
+
+//*****************************************************************************
+-(int)drdynvcProcessClose
+        :(uint16_t)channel_id :(uint32_t)drdynvc_channel_id
+{
+    return 0;
+}
+
+//*****************************************************************************
+-(int)cliprdrReady
+        :(uint16_t)channel_id
+        :(uint32_t)version
+        :(uint32_t)general_flags
+{
+    return 0;
+}
+
+//*****************************************************************************
+-(int)cliprdrFormatList
+        :(uint16_t)channel_id
+        :(uint16_t)msg_flags
+        :(uint32_t)num_formats
+        :(struct cliprdr_format_t*)formats
+{
+    return 0;
+}
+
+//*****************************************************************************
+-(int)cliprdrFormatListResponse
+        :(uint16_t)channel_id
+        :(uint16_t)mfg_flags
+{
+    return 0;
+}
+
+//*****************************************************************************
+-(int)cliprdrDataRequest
+        :(uint16_t)channel_id
+        :(uint32_t)requested_format_id
+{
+    return 0;
+}
+
+//*****************************************************************************
+-(int)cliprdrDataResponse
+        :(uint16_t)channel_id
+        :(uint16_t)msg_flags
+        :(void*)requested_format_data
+        :(uint32_t)requested_format_data_bytes
+{
+    return 0;
+}
+
+//*****************************************************************************
+-(int)rdpsndProcessClose
+        :(uint16_t)channel_id
+{
+    return 0;
+}
+
+//*****************************************************************************
+-(int)rdpsndProcessWave
+        :(uint16_t)channel_id
+        :(uint16_t)time_stamp
+        :(uint16_t)format_no
+        :(void*)data
+        :(uint32_t)bytes
+{
+    return 0;
+}
+
+//*****************************************************************************
+-(int)rdpsndProcessTraining
+        :(uint16_t)channel_id
+        :(uint16_t)time_stamp
+        :(uint16_t)pack_size
+        :(void*)data
+        :(uint32_t)bytes
+{
+    return 0;
+}
+
+//*****************************************************************************
+-(int)rdpsndProcessFormats
+        :(uint16_t)channel_id
+        :(uint32_t)flags
+        :(uint32_t)volume
+        :(uint32_t)pitch
+        :(uint16_t)dgram_port
+        :(uint16_t)version
+        :(uint16_t)block_no
+        :(uint16_t)num_formats
+        :(struct rdpsnd_format_t*)formats
+{
+    return 0;
+}
+
+//*****************************************************************************
+-(int)edispProcessCaps
+        :(uint16_t)channel_id
+        :(uint32_t)drdynvc_channel_id
+        :(uint32_t)max_num_monitor
+        :(uint32_t)max_monitor_area_factor_a
+        :(uint32_t)max_monitor_area_factor_b
+{
+    return 0;
+}
+
+//*****************************************************************************
+-(struct rdpc_t*)getRdpc
+{
+    return rdpc;
+}
+
+//*****************************************************************************
+-(struct svc_channels_t*)getSvc
+{
+    return svc;
+}
+
+//*****************************************************************************
+-(struct drdynvc_t*)getDrdynvc
+{
+    return drdynvc;
+}
+
+//*****************************************************************************
+-(struct cliprdr_t*)getCliprdr
+{
+    return cliprdr;
+}
+
+-(struct rdpsnd_t*)getRdpsnd
+{
+    return rdpsnd;
 }
 
 @end
